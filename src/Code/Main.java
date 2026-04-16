@@ -1,7 +1,11 @@
 package Code;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 
@@ -12,6 +16,20 @@ public class Main {
     private static AdminService adminService;
     private static Session session;
     private static final Scanner scanner = new Scanner(System.in);
+    private static final String DIVIDER = "------------------------------------------------------------";
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final Map<String, Double> MYR_EXCHANGE_RATES = new LinkedHashMap<>();
+
+    static {
+        MYR_EXCHANGE_RATES.put("MYR", 1.0000);
+        MYR_EXCHANGE_RATES.put("USD", 0.2120);
+        MYR_EXCHANGE_RATES.put("CAD", 0.2910);
+        MYR_EXCHANGE_RATES.put("CNY", 1.5300);
+        MYR_EXCHANGE_RATES.put("JPY", 32.1300);
+        MYR_EXCHANGE_RATES.put("KRW", 291.4800);
+        MYR_EXCHANGE_RATES.put("SGD", 0.2860);
+        MYR_EXCHANGE_RATES.put("EUR", 0.1950);
+    }
 
     public static void main(String[] args) {
         db = new DatabaseManager();
@@ -35,7 +53,7 @@ public class Main {
     }
 
     private static void showMainMenu() {
-        System.out.println("\n--- Digital Banking Platform ---");
+        printHeader("Fluxx Banking");
         System.out.println("1. Login");
         System.out.println("2. Register as new customer");
         System.out.println("3. Exit");
@@ -52,7 +70,7 @@ public class Main {
     }
 
     private static void doLogin() {
-        System.out.println("\n--- Login ---");
+        printHeader("Login");
         String idOrEmail = readNonEmpty("Enter IC number or email: ");
         String password = readNonEmpty("Password: ");
         User user = idOrEmail.contains("@") ? authService.loginByEmail(idOrEmail, password) : authService.loginByIc(idOrEmail, password);
@@ -65,7 +83,7 @@ public class Main {
     }
 
     private static void doRegister() {
-        System.out.println("\n--- New Customer Registration ---");
+        printHeader("New Customer Registration");
         String name = readNonEmpty("Full name: ");
         String address = readNonEmpty("Address: ");
         LocalDate dob = readDate("Date of birth (YYYY-MM-DD): ");
@@ -88,21 +106,33 @@ public class Main {
         List<Account> accounts = db.getAccountsByUserId(session.getCurrentUser().getId());
         List<Account> activeAccounts = accounts.stream().filter(a -> Account.STATUS_ACTIVE.equals(a.getStatus())).collect(Collectors.toList());
         if (activeAccounts.isEmpty()) {
-            System.out.println("\nYou have no active accounts yet (pending approval).");
-            System.out.println("1. Logout");
-            readMenuChoice("Choice: ", 1, 1);
-            session.logout();
+            printHeader("Customer Menu");
+            System.out.println("You have no active accounts yet (pending approval).");
+            System.out.println("1. Open new account (max 5)");
+            System.out.println("2. View my accounts");
+            System.out.println("3. Currency exchange calculator");
+            System.out.println("4. Logout");
+            String choice = readMenuChoice("Choice: ", 1, 4);
+            switch (choice) {
+                case "1" -> doOpenAdditionalAccount();
+                case "2" -> doViewAccounts(accounts);
+                case "3" -> doCurrencyExchangeCalculator();
+                case "4" -> session.logout();
+                default -> System.out.println("Invalid choice.");
+            }
             return;
         }
-        System.out.println("\n--- Customer Menu ---");
+        printHeader("Customer Menu");
         System.out.println("1. Open new account (max 5)");
         System.out.println("2. Deposit");
         System.out.println("3. Withdraw");
         System.out.println("4. Transfer");
         System.out.println("5. View transaction history");
         System.out.println("6. Generate monthly statement");
-        System.out.println("7. Logout");
-        String choice = readMenuChoice("Choice: ", 1, 7);
+        System.out.println("7. View my accounts");
+        System.out.println("8. Currency exchange calculator");
+        System.out.println("9. Logout");
+        String choice = readMenuChoice("Choice: ", 1, 9);
         switch (choice) {
             case "1" -> doOpenAdditionalAccount();
             case "2" -> doDeposit(activeAccounts);
@@ -110,8 +140,72 @@ public class Main {
             case "4" -> doTransfer(activeAccounts);
             case "5" -> doViewHistory(activeAccounts);
             case "6" -> doMonthlyStatement(activeAccounts);
-            case "7" -> session.logout();
+            case "7" -> doViewAccounts(accounts);
+            case "8" -> doCurrencyExchangeCalculator();
+            case "9" -> session.logout();
             default -> System.out.println("Invalid choice.");
+        }
+    }
+
+    private static void doViewAccounts(List<Account> accounts) {
+        if (accounts.isEmpty()) {
+            System.out.println("You do not have any accounts yet.");
+            return;
+        }
+
+        printHeader("My Accounts");
+        for (Account account : accounts) {
+            System.out.println("Account ID        : " + account.getId());
+            System.out.println("Account Number    : " + account.getAccountNumber());
+            System.out.println("Type              : " + account.getAccountType().toUpperCase());
+            System.out.println("Status            : " + account.getStatus().toUpperCase());
+            System.out.println("Current Balance   : " + formatMoney(account.getBalance()));
+            System.out.println("Available Balance : " + formatMoney(account.getAvailableBalance()));
+            System.out.println("Created At        : " + formatDateTime(account.getCreatedAt()));
+            if (Account.TYPE_SAVINGS.equals(account.getAccountType())) {
+                System.out.println("Interest Rate     : " + formatPercent(account.getInterestRate()));
+            } else if (Account.TYPE_CURRENT.equals(account.getAccountType())) {
+                System.out.println("Overdraft Limit   : " + formatMoney(account.getOverdraftLimit()));
+                System.out.println("Overdraft Fee     : " + formatMoney(account.getOverdraftFee()));
+            }
+            System.out.println(DIVIDER);
+        }
+    }
+
+    private static void doCurrencyExchangeCalculator() {
+        printHeader("Currency Exchange Calculator");
+        System.out.println("Supported currencies: " + String.join(", ", MYR_EXCHANGE_RATES.keySet()));
+        System.out.println("Base rates (per 1 MYR):");
+        for (Map.Entry<String, Double> entry : MYR_EXCHANGE_RATES.entrySet()) {
+            System.out.println("  1 MYR = " + String.format("%,.4f", entry.getValue()) + " " + entry.getKey());
+        }
+
+        String fromCurrency = readSupportedCurrency("Convert FROM currency code: ");
+        String toCurrency = readSupportedCurrency("Convert TO currency code: ");
+        double amount = readPositiveDouble("Amount to convert: ");
+
+        double convertedAmount = convertCurrency(amount, fromCurrency, toCurrency);
+        double oneUnitRate = convertCurrency(1.0, fromCurrency, toCurrency);
+
+        System.out.println(DIVIDER);
+        System.out.println(String.format("Converted amount : %,.4f %s = %,.4f %s", amount, fromCurrency, convertedAmount, toCurrency));
+        System.out.println(String.format("Exchange rate    : 1 %s = %,.4f %s", fromCurrency, oneUnitRate, toCurrency));
+        System.out.println(DIVIDER);
+    }
+
+    private static double convertCurrency(double amount, String fromCurrency, String toCurrency) {
+        double fromRatePerMyr = MYR_EXCHANGE_RATES.get(fromCurrency);
+        double toRatePerMyr = MYR_EXCHANGE_RATES.get(toCurrency);
+        double amountInMyr = amount / fromRatePerMyr;
+        return amountInMyr * toRatePerMyr;
+    }
+
+    private static String readSupportedCurrency(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String currency = scanner.nextLine().trim().toUpperCase();
+            if (MYR_EXCHANGE_RATES.containsKey(currency)) return currency;
+            System.out.println("Unsupported currency. Please enter one of: " + String.join(", ", MYR_EXCHANGE_RATES.keySet()));
         }
     }
 
@@ -127,7 +221,8 @@ public class Main {
 
         boolean created = customerService.openNewAccountForCustomer(session.getCurrentUser().getId(), accountType, initialDeposit);
         if (created) {
-            System.out.println("Account request submitted successfully. Pending admin approval.");
+            System.out.println("Account request submitted successfully.");
+            System.out.println("Status: PENDING ADMIN APPROVAL");
         } else {
             System.out.println("Could not open a new account (invalid type or max accounts reached).");
         }
@@ -137,7 +232,7 @@ public class Main {
         while (true) {
             for (int i = 0; i < accounts.size(); i++) {
                 Account a = accounts.get(i);
-                System.out.println((i + 1) + ". " + a.getAccountNumber() + " (" + a.getAccountType() + ") Balance: " + a.getBalance());
+                System.out.println((i + 1) + ". " + a.getAccountNumber() + " (" + a.getAccountType().toUpperCase() + ") | Balance: " + formatMoney(a.getBalance()));
             }
             int choice = readIntInRange("Select account (1-" + accounts.size() + "): ", 1, accounts.size());
             return accounts.get(choice - 1);
@@ -157,7 +252,7 @@ public class Main {
 
     private static void doWithdraw(List<Account> accounts) {
         Account acc = selectAccount(accounts);
-        System.out.println("Available: " + acc.getAvailableBalance());
+        System.out.println("Available: " + formatMoney(acc.getAvailableBalance()));
         double amount = readPositiveDouble("Amount to withdraw: ");
         if (customerService.withdraw(acc.getId(), amount, "Withdrawal"))
             System.out.println("Withdrawal successful.");
@@ -178,9 +273,13 @@ public class Main {
     private static void doViewHistory(List<Account> accounts) {
         Account acc = selectAccount(accounts);
         List<Transaction> list = customerService.getTransactionHistory(acc.getId());
-        System.out.println("--- Transaction History: " + acc.getAccountNumber() + " ---");
+        printHeader("Transaction History - " + acc.getAccountNumber());
+        if (list.isEmpty()) {
+            System.out.println("No transactions found.");
+            return;
+        }
         for (Transaction t : list) {
-            System.out.println(t.getTimestamp() + " | " + t.getType() + " | " + t.getAmount() + " | " + (t.getDescription() != null ? t.getDescription() : "") + " | Balance after: " + t.getBalanceAfter());
+            System.out.println(formatDateTime(t.getTimestamp()) + " | " + t.getType() + " | " + formatMoney(t.getAmount()) + " | " + (t.getDescription() != null ? t.getDescription() : "-") + " | Balance after: " + formatMoney(t.getBalanceAfter()));
         }
     }
 
@@ -192,7 +291,7 @@ public class Main {
     }
 
     private static void runAdminMenu() {
-        System.out.println("\n--- Admin Menu ---");
+        printHeader("Admin Menu");
         System.out.println("1. List pending account requests");
         System.out.println("2. Approve account");
         System.out.println("3. Reject account");
@@ -219,21 +318,22 @@ public class Main {
             System.out.println("No pending accounts.");
             return;
         }
+        printHeader("Pending Account Requests");
         for (Account a : pending) {
             User u = db.getUserById(a.getUserId());
-            System.out.println("Account ID: " + a.getId() + " | Number: " + a.getAccountNumber() + " | Type: " + a.getAccountType() + " | User: " + (u != null ? u.getName() : "?"));
+            System.out.println("Account ID: " + a.getId() + " | Number: " + a.getAccountNumber() + " | Type: " + a.getAccountType().toUpperCase() + " | User: " + (u != null ? u.getName() : "?"));
         }
     }
 
     private static void approveAccount() {
         int id = readPositiveInt("Account ID to approve: ");
-        if (adminService.approveAccount(id)) System.out.println("Account approved.");
+        if (adminService.approveAccount(id)) System.out.println("\nAccount approved.");
         else System.out.println("Account not found or not pending.");
     }
 
     private static void rejectAccount() {
         int id = readPositiveInt("Account ID to reject: ");
-        if (adminService.rejectAccount(id)) System.out.println("Account rejected.");
+        if (adminService.rejectAccount(id)) System.out.println("\nAccount rejected.");
         else System.out.println("Account not found or not pending.");
     }
 
@@ -241,21 +341,41 @@ public class Main {
         int id = readPositiveInt("Account ID: ");
         double rate = readNonNegativeDouble("Interest rate (e.g. 0.05 for 5%): ");
         if (adminService.setInterestRate(id, rate)) {
-            System.out.println("Interest rate updated.");
+            System.out.println("Interest rate updated to " + formatPercent(rate) + ".");
         } else {
             System.out.println("Only savings accounts support interest rate updates.");
         }
     }
 
+    private static void printHeader(String title) {
+        System.out.println();
+        System.out.println(DIVIDER);
+        System.out.println(title);
+        System.out.println(DIVIDER);
+    }
+
+    private static String formatMoney(double amount) {
+        return String.format("RM %,.2f", amount);
+    }
+
+    private static String formatPercent(double value) {
+        return String.format("%.2f%%", value * 100);
+    }
+
+    private static String formatDateTime(LocalDateTime dateTime) {
+        if (dateTime == null) return "-";
+        return dateTime.format(DATE_TIME_FORMATTER);
+    }
+
     private static void freezeAccount() {
         int id = readPositiveInt("Account ID to freeze: ");
-        if (adminService.freezeAccount(id)) System.out.println("Account frozen.");
+        if (adminService.freezeAccount(id)) System.out.println("\nAccount frozen.");
         else System.out.println("Account not found.");
     }
 
     private static void unfreezeAccount() {
         int id = readPositiveInt("Account ID to unfreeze: ");
-        if (adminService.unfreezeAccount(id)) System.out.println("Account unfrozen.");
+        if (adminService.unfreezeAccount(id)) System.out.println("\nAccount unfrozen.");
         else System.out.println("Account not found or not frozen.");
     }
 

@@ -2,7 +2,7 @@ package Code;
 
 import java.time.LocalDateTime;
 
-public class Account {
+abstract class Account {
     public static final String TYPE_SAVINGS = "savings";
     public static final String TYPE_CURRENT = "current";
     public static final String STATUS_PENDING = "pending";

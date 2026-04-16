@@ -134,14 +134,22 @@ public class CustomerService {
         List<Transaction> list = getMonthlyStatement(accountId, year, month);
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         StringBuilder sb = new StringBuilder();
+        sb.append("------------------------------------------------------------\n");
         sb.append("Monthly Statement - ").append(acc.getAccountNumber()).append(" - ").append(year).append("-").append(String.format("%02d", month)).append("\n");
-        sb.append("Account Type: ").append(acc.getAccountType()).append(" | Balance: ").append(acc.getBalance()).append("\n");
-        sb.append("----------------------------------------\n");
+        sb.append("------------------------------------------------------------\n");
+        sb.append("Account Type : ").append(acc.getAccountType().toUpperCase()).append("\n");
+        sb.append("Balance      : ").append(String.format("RM %,.2f", acc.getBalance())).append("\n");
+        sb.append("------------------------------------------------------------\n");
+        if (list.isEmpty()) {
+            sb.append("No transactions for this month.\n");
+        }
         for (Transaction t : list) {
             sb.append(t.getTimestamp().format(fmt)).append(" | ").append(t.getType()).append(" | ");
-            sb.append(t.getAmount()).append(" | ").append(t.getDescription() != null ? t.getDescription() : "").append(" | Balance after: ").append(t.getBalanceAfter()).append("\n");
+            sb.append(String.format("RM %,.2f", t.getAmount())).append(" | ");
+            sb.append(t.getDescription() != null ? t.getDescription() : "-").append(" | Balance after: ");
+            sb.append(String.format("RM %,.2f", t.getBalanceAfter())).append("\n");
         }
-        sb.append("----------------------------------------\n");
+        sb.append("------------------------------------------------------------\n");
         return sb.toString();
     }
 }
