@@ -31,6 +31,10 @@ public class Main {
         MYR_EXCHANGE_RATES.put("EUR", 0.1950);
     }
 
+    private static final class NavigateBack extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+    }
+
     public static void main(String[] args) {
         db = new DatabaseManager();
         db.createTables();
@@ -57,7 +61,7 @@ public class Main {
         System.out.println("1. Login");
         System.out.println("2. Register as new customer");
         System.out.println("3. Exit");
-        String input = readMenuChoice("Choice: ", 1, 3);
+        String input = readMainMenuChoice("Choice: ", 1, 3);
         switch (input) {
             case "1" -> doLogin();
             case "2" -> doRegister();
@@ -70,36 +74,40 @@ public class Main {
     }
 
     private static void doLogin() {
-        printHeader("Login");
-        String idOrEmail = readNonEmpty("Enter IC number or email: ");
-        String password = readNonEmpty("Password: ");
-        User user = idOrEmail.contains("@") ? authService.loginByEmail(idOrEmail, password) : authService.loginByIc(idOrEmail, password);
-        if (user != null) {
-            session.setCurrentUser(user);
-            System.out.println("Welcome, " + user.getName() + (user.isAdmin() ? " (Admin)" : "") + ".");
-        } else {
-            System.out.println("Invalid IC/email or password.");
-        }
+        try {
+            printHeader("Login (Press 'N' at any time to return to main menu)");
+            String idOrEmail = readNonEmpty("Enter IC number or email: ");
+            String password = readNonEmpty("Password: ");
+            User user = idOrEmail.contains("@") ? authService.loginByEmail(idOrEmail, password) : authService.loginByIc(idOrEmail, password);
+            if (user != null) {
+                session.setCurrentUser(user);
+                System.out.println("Welcome, " + user.getName() + (user.isAdmin() ? " (Admin)" : "") + ".");
+            } else {
+                System.out.println("Invalid IC/email or password.");
+            }
+        } catch (NavigateBack ignored) {}
     }
 
     private static void doRegister() {
-        printHeader("New Customer Registration");
-        String name = readNonEmpty("Full name: ");
-        String address = readNonEmpty("Address: ");
-        LocalDate dob = readDate("Date of birth (YYYY-MM-DD): ");
-        String ic = readNonEmpty("IC number: ");
-        String occupation = readNonEmpty("Occupation: ");
-        String email = readEmail("Email: ");
-        String phone = readNonEmpty("Phone: ");
-        String password = readNonEmpty("Password: ");
-        String accountType = readAccountType();
-        double initialDeposit = readNonNegativeDouble("Initial deposit amount: ");
-        User created = customerService.register(name, address, dob, ic, occupation, email, phone, password, accountType, initialDeposit);
-        if (created != null) {
-            System.out.println("Registration successful. Your Customer ID is linked to your account. Please wait for admin approval of your account.");
-        } else {
-            System.out.println("Registration failed (IC or email may already exist).");
-        }
+        try {
+            printHeader("New Customer Registration (Press 'N' at any time to return to main menu)");
+            String name = readNonEmpty("Full name: ");
+            String address = readNonEmpty("Address: ");
+            LocalDate dob = readDate("Date of birth (YYYY-MM-DD): ");
+            String ic = readNonEmpty("IC number: ");
+            String occupation = readNonEmpty("Occupation: ");
+            String email = readEmail("Email: ");
+            String phone = readNonEmpty("Phone: ");
+            String password = readNonEmpty("Password: ");
+            String accountType = readAccountType();
+            double initialDeposit = readNonNegativeDouble("Initial deposit amount: ");
+            User created = customerService.register(name, address, dob, ic, occupation, email, phone, password, accountType, initialDeposit);
+            if (created != null) {
+                System.out.println("Registration successful. Your Customer ID is linked to your account. Please wait for admin approval of your account.");
+            } else {
+                System.out.println("Registration failed (IC or email may already exist).");
+            }
+        } catch (NavigateBack ignored) {}
     }
 
     private static void runCustomerMenu() {
@@ -112,14 +120,17 @@ public class Main {
             System.out.println("2. View my accounts");
             System.out.println("3. Currency exchange calculator");
             System.out.println("4. Logout");
-            String choice = readMenuChoice("Choice: ", 1, 4);
-            switch (choice) {
-                case "1" -> doOpenAdditionalAccount();
-                case "2" -> doViewAccounts(accounts);
-                case "3" -> doCurrencyExchangeCalculator();
-                case "4" -> session.logout();
-                default -> System.out.println("Invalid choice.");
-            }
+            String choice = readLoggedInRootMenuChoice("Choice: ", 1, 4);
+            if (choice == null) return;
+            try {
+                switch (choice) {
+                    case "1" -> doOpenAdditionalAccount();
+                    case "2" -> doViewAccounts(accounts);
+                    case "3" -> doCurrencyExchangeCalculator();
+                    case "4" -> session.logout();
+                    default -> System.out.println("Invalid choice.");
+                }
+            } catch (NavigateBack ignored) {}
             return;
         }
         printHeader("Customer Menu");
@@ -132,19 +143,22 @@ public class Main {
         System.out.println("7. View my accounts");
         System.out.println("8. Currency exchange calculator");
         System.out.println("9. Logout");
-        String choice = readMenuChoice("Choice: ", 1, 9);
-        switch (choice) {
-            case "1" -> doOpenAdditionalAccount();
-            case "2" -> doDeposit(activeAccounts);
-            case "3" -> doWithdraw(activeAccounts);
-            case "4" -> doTransfer(activeAccounts);
-            case "5" -> doViewHistory(activeAccounts);
-            case "6" -> doMonthlyStatement(activeAccounts);
-            case "7" -> doViewAccounts(accounts);
-            case "8" -> doCurrencyExchangeCalculator();
-            case "9" -> session.logout();
-            default -> System.out.println("Invalid choice.");
-        }
+        String choice = readLoggedInRootMenuChoice("Choice: ", 1, 9);
+        if (choice == null) return;
+        try {
+            switch (choice) {
+                case "1" -> doOpenAdditionalAccount();
+                case "2" -> doDeposit(activeAccounts);
+                case "3" -> doWithdraw(activeAccounts);
+                case "4" -> doTransfer(activeAccounts);
+                case "5" -> doViewHistory(activeAccounts);
+                case "6" -> doMonthlyStatement(activeAccounts);
+                case "7" -> doViewAccounts(accounts);
+                case "8" -> doCurrencyExchangeCalculator();
+                case "9" -> session.logout();
+                default -> System.out.println("Invalid choice.");
+            }
+        } catch (NavigateBack ignored) {}
     }
 
     private static void doViewAccounts(List<Account> accounts) {
@@ -173,11 +187,11 @@ public class Main {
     }
 
     private static void doCurrencyExchangeCalculator() {
-        printHeader("Currency Exchange Calculator");
+        printHeader("Currency Exchange Calculator (Press 'N' at any time to return to previous menu)");
         System.out.println("Supported currencies: " + String.join(", ", MYR_EXCHANGE_RATES.keySet()));
         System.out.println("Base rates (per 1 MYR):");
         for (Map.Entry<String, Double> entry : MYR_EXCHANGE_RATES.entrySet()) {
-            System.out.println("  1 MYR = " + String.format("%,.4f", entry.getValue()) + " " + entry.getKey());
+            System.out.println("  1 MYR = " + String.format("%,.2f", entry.getValue()) + " " + entry.getKey());
         }
 
         String fromCurrency = readSupportedCurrency("Convert FROM currency code: ");
@@ -188,8 +202,8 @@ public class Main {
         double oneUnitRate = convertCurrency(1.0, fromCurrency, toCurrency);
 
         System.out.println(DIVIDER);
-        System.out.println(String.format("Converted amount : %,.4f %s = %,.4f %s", amount, fromCurrency, convertedAmount, toCurrency));
-        System.out.println(String.format("Exchange rate    : 1 %s = %,.4f %s", fromCurrency, oneUnitRate, toCurrency));
+        System.out.println(String.format("Converted amount : %,.2f %s = %,.2f %s", amount, fromCurrency, convertedAmount, toCurrency));
+        System.out.println(String.format("Exchange rate    : 1 %s = %,.2f %s", fromCurrency, oneUnitRate, toCurrency));
         System.out.println(DIVIDER);
     }
 
@@ -203,7 +217,7 @@ public class Main {
     private static String readSupportedCurrency(String prompt) {
         while (true) {
             System.out.print(prompt);
-            String currency = scanner.nextLine().trim().toUpperCase();
+            String currency = readLineOrBack().toUpperCase();
             if (MYR_EXCHANGE_RATES.containsKey(currency)) return currency;
             System.out.println("Unsupported currency. Please enter one of: " + String.join(", ", MYR_EXCHANGE_RATES.keySet()));
         }
@@ -215,7 +229,7 @@ public class Main {
             System.out.println("You already have the maximum of " + CustomerService.MAX_ACCOUNTS_PER_CUSTOMER + " accounts.");
             return;
         }
-
+        printHeader("Open Additional Account (Press 'N' at any time to return to previous menu)");
         String accountType = readAccountType();
         double initialDeposit = readNonNegativeDouble("Initial deposit amount: ");
 
@@ -234,6 +248,7 @@ public class Main {
                 Account a = accounts.get(i);
                 System.out.println((i + 1) + ". " + a.getAccountNumber() + " (" + a.getAccountType().toUpperCase() + ") | Balance: " + formatMoney(a.getBalance()));
             }
+            printHeader("Select an account (Press 'N' to return to previous menu)");
             int choice = readIntInRange("Select account (1-" + accounts.size() + "): ", 1, accounts.size());
             return accounts.get(choice - 1);
         }
@@ -243,7 +258,7 @@ public class Main {
         Account acc = selectAccount(accounts);
         double amount = readPositiveDouble("Amount to deposit: ");
         System.out.print("Description (optional): ");
-        String desc = scanner.nextLine().trim();
+        String desc = readLineOrBack();
         if (customerService.deposit(acc.getId(), amount, desc.isEmpty() ? "Deposit" : desc))
             System.out.println("Deposit successful.");
         else
@@ -299,17 +314,20 @@ public class Main {
         System.out.println("5. Freeze account");
         System.out.println("6. Unfreeze account");
         System.out.println("7. Logout");
-        String choice = readMenuChoice("Choice: ", 1, 7);
-        switch (choice) {
-            case "1" -> listPendingAccounts();
-            case "2" -> approveAccount();
-            case "3" -> rejectAccount();
-            case "4" -> setInterestRate();
-            case "5" -> freezeAccount();
-            case "6" -> unfreezeAccount();
-            case "7" -> session.logout();
-            default -> System.out.println("Invalid choice.");
-        }
+        String choice = readLoggedInRootMenuChoice("Choice: ", 1, 7);
+        if (choice == null) return;
+        try {
+            switch (choice) {
+                case "1" -> listPendingAccounts();
+                case "2" -> approveAccount();
+                case "3" -> rejectAccount();
+                case "4" -> setInterestRate();
+                case "5" -> freezeAccount();
+                case "6" -> unfreezeAccount();
+                case "7" -> session.logout();
+                default -> System.out.println("Invalid choice.");
+            }
+        } catch (NavigateBack ignored) {}
     }
 
     private static void listPendingAccounts() {
@@ -326,18 +344,21 @@ public class Main {
     }
 
     private static void approveAccount() {
+        printHeader("Approve Account Request (Press 'N' to return to previous menu)");
         int id = readPositiveInt("Account ID to approve: ");
         if (adminService.approveAccount(id)) System.out.println("\nAccount approved.");
         else System.out.println("Account not found or not pending.");
     }
 
     private static void rejectAccount() {
+        printHeader("Reject Account Request (Press 'N' to return to previous menu)");
         int id = readPositiveInt("Account ID to reject: ");
         if (adminService.rejectAccount(id)) System.out.println("\nAccount rejected.");
         else System.out.println("Account not found or not pending.");
     }
 
     private static void setInterestRate() {
+        printHeader("Set Interest Rate (Press 'N' to return to previous menu)");
         int id = readPositiveInt("Account ID: ");
         double rate = readNonNegativeDouble("Interest rate (e.g. 0.05 for 5%): ");
         if (adminService.setInterestRate(id, rate)) {
@@ -345,6 +366,27 @@ public class Main {
         } else {
             System.out.println("Only savings accounts support interest rate updates.");
         }
+    }
+
+    private static void freezeAccount() {
+        printHeader("Freeze Account (Press 'N' to return to previous menu)");
+        int id = readPositiveInt("Account ID to freeze: ");
+        if (adminService.freezeAccount(id)) System.out.println("\nAccount frozen.");
+        else System.out.println("Account not found.");
+    }
+
+    private static void unfreezeAccount() {
+        printHeader("Unfreeze Account (Press 'N' to return to previous menu)");
+        int id = readPositiveInt("Account ID to unfreeze: ");
+        if (adminService.unfreezeAccount(id)) System.out.println("\nAccount unfrozen.");
+        else System.out.println("Account not found or not frozen.");
+    }
+
+    private static String readLineOrBack() {
+        String line = scanner.nextLine();
+        String trimmed = line.trim();
+        if ("N".equals(trimmed)) throw new NavigateBack();
+        return trimmed;
     }
 
     private static void printHeader(String title) {
@@ -367,23 +409,44 @@ public class Main {
         return dateTime.format(DATE_TIME_FORMATTER);
     }
 
-    private static void freezeAccount() {
-        int id = readPositiveInt("Account ID to freeze: ");
-        if (adminService.freezeAccount(id)) System.out.println("\nAccount frozen.");
-        else System.out.println("Account not found.");
+
+    private static String readMainMenuChoice(String prompt, int min, int max) {
+        while (true) {
+            System.out.print(prompt);
+            String input = scanner.nextLine().trim();
+            if ("N".equals(input)) {
+                System.out.println("You are already at the main menu.");
+                continue;
+            }
+            try {
+                int value = Integer.parseInt(input);
+                if (value >= min && value <= max) return String.valueOf(value);
+            } catch (NumberFormatException ignored) {}
+            System.out.println("Invalid choice. Please enter a number from " + min + " to " + max + ".");
+        }
     }
 
-    private static void unfreezeAccount() {
-        int id = readPositiveInt("Account ID to unfreeze: ");
-        if (adminService.unfreezeAccount(id)) System.out.println("\nAccount unfrozen.");
-        else System.out.println("Account not found or not frozen.");
+    private static String readLoggedInRootMenuChoice(String prompt, int min, int max) {
+        while (true) {
+            System.out.print(prompt);
+            String input = scanner.nextLine().trim();
+            if ("N".equals(input)) {
+                session.logout();
+                return null;
+            }
+            try {
+                int value = Integer.parseInt(input);
+                if (value >= min && value <= max) return String.valueOf(value);
+            } catch (NumberFormatException ignored) {}
+            System.out.println("Invalid choice. Please enter a number from " + min + " to " + max + ".");
+        }
     }
 
     private static String readMenuChoice(String prompt, int min, int max) {
         while (true) {
             System.out.print(prompt);
-            String input = scanner.nextLine().trim();
             try {
+                String input = readLineOrBack();
                 int value = Integer.parseInt(input);
                 if (value >= min && value <= max) return String.valueOf(value);
             } catch (NumberFormatException ignored) {}
@@ -394,18 +457,24 @@ public class Main {
     private static String readNonEmpty(String prompt) {
         while (true) {
             System.out.print(prompt);
-            String value = scanner.nextLine().trim();
+            String value = readLineOrBack();
             if (!value.isEmpty()) return value;
             System.out.println("Input cannot be empty.");
         }
     }
 
+    //For birthdate only
     private static LocalDate readDate(String prompt) {
         while (true) {
             System.out.print(prompt);
-            String input = scanner.nextLine().trim();
+            String input = readLineOrBack();
             try {
-                return LocalDate.parse(input);
+                LocalDate date = LocalDate.parse(input);
+                if (date.isAfter(LocalDate.now().minusYears(18))) {
+                    System.out.println("You must be at least 18 years old to register.");
+                } else {
+                    return date;
+                }
             } catch (Exception ignored) {
                 System.out.println("Invalid date format. Use YYYY-MM-DD.");
             }
@@ -434,7 +503,7 @@ public class Main {
     private static int readIntInRange(String prompt, int min, int max) {
         while (true) {
             System.out.print(prompt);
-            String input = scanner.nextLine().trim();
+            String input = readLineOrBack();
             try {
                 int value = Integer.parseInt(input);
                 if (value >= min && value <= max) return value;
@@ -446,7 +515,7 @@ public class Main {
     private static int readPositiveInt(String prompt) {
         while (true) {
             System.out.print(prompt);
-            String input = scanner.nextLine().trim();
+            String input = readLineOrBack();
             try {
                 int value = Integer.parseInt(input);
                 if (value > 0) return value;
@@ -458,7 +527,7 @@ public class Main {
     private static double readPositiveDouble(String prompt) {
         while (true) {
             System.out.print(prompt);
-            String input = scanner.nextLine().trim();
+            String input = readLineOrBack();
             try {
                 double value = Double.parseDouble(input);
                 if (value > 0) return value;
@@ -470,7 +539,7 @@ public class Main {
     private static double readNonNegativeDouble(String prompt) {
         while (true) {
             System.out.print(prompt);
-            String input = scanner.nextLine().trim();
+            String input = readLineOrBack();
             try {
                 double value = Double.parseDouble(input);
                 if (value >= 0) return value;
