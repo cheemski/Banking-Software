@@ -57,10 +57,17 @@ public class Main {
     }
 
     private static void showMainMenu() {
-        printHeader("Fluxx Banking");
-        System.out.println("1. Login");
-        System.out.println("2. Register as new customer");
-        System.out.println("3. Exit");
+        System.out.println("\n\n============================================================");
+        System.out.println("                      Fluxx Banking");
+        System.out.println("============================================================");
+        System.out.println();
+        System.out.println("╔════════════════════════════════════════════════════════╗");
+        System.out.println("║                    MAIN MENU                           ║");
+        System.out.println("╠════════════════════════════════════════════════════════╣");
+        System.out.println("║  1. Login                                              ║");
+        System.out.println("║  2. Register as new customer                           ║");
+        System.out.println("║  3. Exit                                               ║");
+        System.out.println("╚════════════════════════════════════════════════════════╝");
         String input = readMainMenuChoice("Choice: ", 1, 3);
         switch (input) {
             case "1" -> doLogin();
@@ -75,7 +82,10 @@ public class Main {
 
     private static void doLogin() {
         try {
-            printHeader("Login (Press 'N' at any time to return to main menu)");
+            System.out.println("\n┌────────────────────────────────────────────────────────┐");
+            System.out.println("│                         LOGIN                          │");
+            System.out.println("└────────────────────────────────────────────────────────┘");
+            System.out.println("Press 'N' at any time to return to main menu");
             String idOrEmail = readNonEmpty("Enter IC number or email: ");
             String password = readNonEmpty("Password: ");
             User user = idOrEmail.contains("@") ? authService.loginByEmail(idOrEmail, password) : authService.loginByIc(idOrEmail, password);
@@ -90,7 +100,10 @@ public class Main {
 
     private static void doRegister() {
         try {
-            printHeader("New Customer Registration (Press 'N' at any time to return to main menu)");
+            System.out.println("\n\n┌────────────────────────────────────────────────────────┐");
+            System.out.println("│                 NEW CUSTOMER REGISTRATION              │");
+            System.out.println("└────────────────────────────────────────────────────────┘");
+            System.out.println("Press 'N' at any time to return to main menu");
             String name = readNonEmpty("Full name: ");
             String address = readNonEmpty("Address: ");
             LocalDate dob = readDate("Date of birth (YYYY-MM-DD): ");
@@ -114,13 +127,16 @@ public class Main {
         List<Account> accounts = db.getAccountsByUserId(session.getCurrentUser().getId());
         List<Account> activeAccounts = accounts.stream().filter(a -> Account.STATUS_ACTIVE.equals(a.getStatus())).collect(Collectors.toList());
         if (activeAccounts.isEmpty()) {
-            printHeader("Customer Menu");
-            System.out.println("You have no active accounts yet (pending approval).");
-            System.out.println("1. Open new account (max 5)");
-            System.out.println("2. View my accounts");
-            System.out.println("3. Currency exchange calculator");
-            System.out.println("4. Delete an account");
-            System.out.println("5. Logout");
+            System.out.println("\n╔════════════════════════════════════════════════════════╗");
+            System.out.println("║                     CUSTOMER MENU                      ║");
+            System.out.println("╠════════════════════════════════════════════════════════╣");
+            System.out.println("║ You have no active accounts yet (pending approval).    ║");
+            System.out.println("║ 1. Open new account (max 5)                            ║");
+            System.out.println("║ 2. View my accounts                                    ║");
+            System.out.println("║ 3. Currency exchange calculator                        ║");
+            System.out.println("║ 4. Delete an account                                   ║");
+            System.out.println("║ 5. Logout                                              ║");
+            System.out.println("╚════════════════════════════════════════════════════════╝");
             String choice = readLoggedInRootMenuChoice("Choice: ", 1, 5);
             if (choice == null) return;
             try {
@@ -171,7 +187,9 @@ public class Main {
             return;
         }
 
-        printHeader("My Accounts");
+        System.out.println("\n┌────────────────────────────────────────────────────────┐");
+        System.out.println("│                  ACCOUNT DETAILS                       │");
+        System.out.println("└────────────────────────────────────────────────────────┘");
         for (Account account : accounts) {
             System.out.println("Account ID        : " + account.getId());
             System.out.println("Account Number    : " + account.getAccountNumber());
@@ -191,7 +209,10 @@ public class Main {
     }
 
     private static void doCurrencyExchangeCalculator() {
-        printHeader("Currency Exchange Calculator (Press 'N' at any time to return to previous menu)");
+        System.out.println("\n┌────────────────────────────────────────────────────────┐");
+        System.out.println("│              Currency Exchange Calculator              │");
+        System.out.println("└────────────────────────────────────────────────────────┘");
+        System.out.println("Press 'N' at any time to return to previous menu");
         System.out.println("Supported currencies: " + String.join(", ", MYR_EXCHANGE_RATES.keySet()));
         System.out.println("Base rates (per 1 MYR):");
         for (Map.Entry<String, Double> entry : MYR_EXCHANGE_RATES.entrySet()) {
@@ -248,6 +269,10 @@ public class Main {
 
     private static Account selectAccount(List<Account> accounts) {
         while (true) {
+            System.out.println("\n┌────────────────────────────────────────────────────────┐");
+            System.out.println("│                    Select an account                   │");
+            System.out.println("└────────────────────────────────────────────────────────┘");
+            System.out.println("Press 'N' at any time to return to previous menu");
             for (int i = 0; i < accounts.size(); i++) {
                 Account a = accounts.get(i);
                 System.out.println((i + 1) + ". " + a.getAccountNumber() + " (" + a.getAccountType().toUpperCase() + ") | Balance: " + formatMoney(a.getBalance()));
@@ -292,7 +317,10 @@ public class Main {
     private static void doViewHistory(List<Account> accounts) {
         Account acc = selectAccount(accounts);
         List<Transaction> list = customerService.getTransactionHistory(acc.getId());
-        printHeader("Transaction History - " + acc.getAccountNumber());
+        System.out.println("\n┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐");
+        System.out.println("│                                          Transaction History                                           │");
+        System.out.println("│                                         Account: " + acc.getAccountNumber() + "                                         │");
+        System.out.println("└────────────────────────────────────────────────────────────────────────────────────────────────────────┘");
         if (list.isEmpty()) {
             System.out.println("No transactions found.");
             return;
@@ -335,14 +363,18 @@ public class Main {
 
     private static void runAdminMenu() {
         printHeader("Admin Menu");
-        System.out.println("1. List pending account requests");
-        System.out.println("2. List all accounts (database)");
-        System.out.println("3. Approve account");
-        System.out.println("4. Reject account");
-        System.out.println("5. Set interest rate for an account");
-        System.out.println("6. Freeze account");
-        System.out.println("7. Unfreeze account");
-        System.out.println("8. Logout");
+        System.out.println("\n╔════════════════════════════════════════════════════════╗");
+        System.out.println("║                    ADMIN MENU                          ║");
+        System.out.println("╠════════════════════════════════════════════════════════╣");
+        System.out.println("║  1. List pending account requests                      ║");
+        System.out.println("║  2. List all accounts (database)                       ║");
+        System.out.println("║  3. Approve account                                    ║");
+        System.out.println("║  4. Reject account                                     ║");
+        System.out.println("║  5. Set interest rate for an accoun                    ║");
+        System.out.println("║  6. Freeze account                                     ║");
+        System.out.println("║  7. Unfreeze account                                   ║");
+        System.out.println("║  8. Logout                                             ║");
+        System.out.println("╚════════════════════════════════════════════════════════╝");
         String choice = readLoggedInRootMenuChoice("Choice: ", 1, 8);
         if (choice == null) return;
         try {
@@ -379,7 +411,9 @@ public class Main {
             System.out.println("No accounts in the database.");
             return;
         }
-        printHeader("All Accounts");
+        System.out.println("\n┌────────────────────────────────────────────────────────┐");
+        System.out.println("│                        All Accounts                    │");
+        System.out.println("└────────────────────────────────────────────────────────┘");
         for (Account a : accounts) {
             User u = db.getUserById(a.getUserId());
             System.out.println("Account ID:      " + a.getId());
@@ -402,21 +436,30 @@ public class Main {
     }
 
     private static void approveAccount() {
-        printHeader("Approve Account Request (Press 'N' to return to previous menu)");
+        System.out.println("\n┌────────────────────────────────────────────────────────┐");
+        System.out.println("│                  Approve Account Request               │");
+        System.out.println("└────────────────────────────────────────────────────────┘");
+        System.out.println("Press 'N' to return to previous menu");
         int id = readPositiveInt("Account ID to approve: ");
         if (adminService.approveAccount(id)) System.out.println("\nAccount approved.");
         else System.out.println("Account not found or not pending.");
     }
 
     private static void rejectAccount() {
-        printHeader("Reject Account Request (Press 'N' to return to previous menu)");
+        System.out.println("\n┌────────────────────────────────────────────────────────┐");
+        System.out.println("│                  Reject Account Request                │");
+        System.out.println("└────────────────────────────────────────────────────────┘");
+        System.out.println("Press 'N' to return to previous menu");
         int id = readPositiveInt("Account ID to reject: ");
         if (adminService.rejectAccount(id)) System.out.println("\nAccount rejected.");
         else System.out.println("Account not found or not pending.");
     }
 
     private static void setInterestRate() {
-        printHeader("Set Interest Rate (Press 'N' to return to previous menu)");
+        System.out.println("\n┌────────────────────────────────────────────────────────┐");
+        System.out.println("│                     Set Interest Rate                  │");
+        System.out.println("└────────────────────────────────────────────────────────┘");
+        System.out.println("Press 'N' to return to previous menu");
         int id = readPositiveInt("Account ID: ");
         double rate = readNonNegativeDouble("Interest rate (e.g. 0.05 for 5%): ");
         if (adminService.setInterestRate(id, rate)) {
@@ -427,14 +470,20 @@ public class Main {
     }
 
     private static void freezeAccount() {
-        printHeader("Freeze Account (Press 'N' to return to previous menu)");
+        System.out.println("\n┌────────────────────────────────────────────────────────┐");
+        System.out.println("│                       Freeze Account                   │");
+        System.out.println("└────────────────────────────────────────────────────────┘");
+        System.out.println("Press 'N' to return to previous menu");
         int id = readPositiveInt("Account ID to freeze: ");
         if (adminService.freezeAccount(id)) System.out.println("\nAccount frozen.");
         else System.out.println("Account not found.");
     }
 
     private static void unfreezeAccount() {
-        printHeader("Unfreeze Account (Press 'N' to return to previous menu)");
+        System.out.println("\n┌────────────────────────────────────────────────────────┐");
+        System.out.println("│                     Unfreeze Account                   │");
+        System.out.println("└────────────────────────────────────────────────────────┘");
+        System.out.println("Press 'N' to return to previous menu");
         int id = readPositiveInt("Account ID to unfreeze: ");
         if (adminService.unfreezeAccount(id)) System.out.println("\nAccount unfrozen.");
         else System.out.println("Account not found or not frozen.");
@@ -549,9 +598,12 @@ public class Main {
 
     private static String readAccountType() {
         while (true) {
-            System.out.println("Choose account type:");
-            System.out.println("1. Savings");
-            System.out.println("2. Current");
+            System.out.println("\n┌────────────────────────────────────────────────────────┐");
+            System.out.println("│                   Choose account type                  │");
+            System.out.println("├────────────────────────────────────────────────────────┤");
+            System.out.println("│  1. Savings                                            │");
+            System.out.println("│  2. Current                                            │");
+            System.out.println("└────────────────────────────────────────────────────────┘");
             String input = readMenuChoice("Choice: ", 1, 2);
             if ("1".equals(input)) return Account.TYPE_SAVINGS;
             if ("2".equals(input)) return Account.TYPE_CURRENT;
