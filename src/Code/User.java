@@ -1,6 +1,7 @@
 package Code;
 // User.java
 import java.time.LocalDate;
+import java.util.Objects;
 
 public class User {
     public static final String ROLE_CUSTOMER = "customer";
@@ -93,5 +94,20 @@ public class User {
     public boolean isAdmin() { return ROLE_ADMIN.equals(role); }
     public String getAlldetail() {
         return(name + "\n" + address + "\n" + dateOfBirth + "\n" + occupation + "\n" + email + "\n" + phone + "\n" + passwordHash);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof User)) return false;
+        User other = (User) o;
+        if (id != 0 && other.id != 0) return id == other.id;
+        if (id != 0 || other.id != 0) return false;
+        return icNumber != null && icNumber.equals(other.icNumber);
+    }
+
+    @Override
+    public String toString() {
+        return "User{id=" + id + ", name='" + name + "', email='" + email + "', icNumber='" + icNumber + "', role='" + role + "'}";
     }
 }

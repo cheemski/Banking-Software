@@ -52,4 +52,30 @@ abstract class Account {
     public void setOverdraftFee(double overdraftFee) {}
 
     public double getAvailableBalance() { return balance; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Account other = (Account) o;
+        if (id != 0 && other.id != 0) return id == other.id;
+        if (id != 0 || other.id != 0) return false;
+        return accountNumber != null && accountNumber.equals(other.accountNumber);
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName()
+                + "{id=" + id
+                + ", userId=" + userId
+                + ", accountNumber='" + accountNumber + '\''
+                + ", accountType='" + accountType + '\''
+                + ", balance=" + balance
+                + ", status='" + status + '\''
+                + ", interestRate=" + getInterestRate()
+                + ", overdraftLimit=" + getOverdraftLimit()
+                + ", overdraftFee=" + getOverdraftFee()
+                + ", createdAt=" + createdAt
+                + "}";
+    }
 }

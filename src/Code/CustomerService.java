@@ -6,10 +6,11 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Customer-facing operations: register, deposit, withdraw, transfer, view history, monthly statement.
+ * Customer-facing operations: register, deposit, withdraw, transfer, view history, monthly statement, delete account.
  */
 public class CustomerService {
     public static final int MAX_ACCOUNTS_PER_CUSTOMER = 5;
+    public static final double ZERO_BALANCE_EPSILON = 1e-6;
     private final DatabaseManager db;
 
     public CustomerService(DatabaseManager db) {
@@ -69,7 +70,7 @@ public class CustomerService {
             Account createdAccount = db.getAccountByNumber(accountNumber);
             if (createdAccount != null) {
                 String ref = "REF" + System.currentTimeMillis();
-                Transaction t = new Transaction(createdAccount.getId(), Transaction.TYPE_DEPOSIT, initialDeposit, "Initial deposit", ref, initialDeposit);
+                Transaction t = new DepositTransaction(createdAccount.getId(), initialDeposit, "Initial deposit", ref, initialDeposit);
                 db.insertTransaction(t);
             }
         }
@@ -85,7 +86,7 @@ public class CustomerService {
         if (acc == null || !Account.STATUS_ACTIVE.equals(acc.getStatus())) return false;
         double newBalance = acc.getBalance() + amount;
         String ref = "REF" + System.currentTimeMillis();
-        Transaction t = new Transaction(accountId, Transaction.TYPE_DEPOSIT, amount, description, ref, newBalance);
+        Transaction t = new DepositTransaction(accountId, amount, description, ref, newBalance);
         db.insertTransaction(t);
         db.updateAccountBalance(accountId, newBalance);
         return true;
@@ -101,7 +102,7 @@ public class CustomerService {
         if (acc.getAvailableBalance() < amount) return false;
         double newBalance = acc.getBalance() - amount;
         String ref = "REF" + System.currentTimeMillis();
-        Transaction t = new Transaction(accountId, Transaction.TYPE_WITHDRAWAL, amount, description, ref, newBalance);
+        Transaction t = new WithdrawTransaction(accountId, amount, description, ref, newBalance);
         db.insertTransaction(t);
         db.updateAccountBalance(accountId, newBalance);
         return true;
@@ -119,6 +120,20 @@ public class CustomerService {
 
     public List<Transaction> getTransactionHistory(int accountId) {
         return db.getTransactionsByAccountId(accountId);
+    }
+
+    /**
+     * Permanently deletes the customer's account after password confirmation.
+     * The account balance must be zero (no funds). Returns false if validation fails or the delete does not complete.
+     */
+    public boolean deleteOwnAccount(int userId, int accountId, String password) {
+        if (password == null || password.isBlank()) return false;
+        User user = db.getUserById(userId);
+        if (user == null || !db.validatePassword(password, user.getPasswordHash())) return false;
+        Account acc = db.getAccountById(accountId);
+        if (acc == null || acc.getUserId() != userId) return false;
+        if (Math.abs(acc.getBalance()) >= ZERO_BALANCE_EPSILON) return false;
+        return db.deleteAccountWithTransactions(accountId);
     }
 
     public List<Transaction> getMonthlyStatement(int accountId, int year, int month) {

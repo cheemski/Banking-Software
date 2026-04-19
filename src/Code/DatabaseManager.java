@@ -340,6 +340,48 @@ public class DatabaseManager {
         return accounts;
     }
 
+    public List<Account> getAllAccounts() {
+        List<Account> accounts = new ArrayList<>();
+        String sql = "SELECT * FROM Accounts ORDER BY id";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) accounts.add(mapAccount(rs));
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return accounts;
+    }
+
+    /**
+     * Removes an account and its transaction rows. Caller must enforce ownership and business rules (e.g. zero balance).
+     */
+    public boolean deleteAccountWithTransactions(int accountId) {
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                try (PreparedStatement delTx = conn.prepareStatement("DELETE FROM Transactions WHERE account_id = ?")) {
+                    delTx.setInt(1, accountId);
+                    delTx.executeUpdate();
+                }
+                try (PreparedStatement delAcc = conn.prepareStatement("DELETE FROM Accounts WHERE id = ?")) {
+                    delAcc.setInt(1, accountId);
+                    int rows = delAcc.executeUpdate();
+                    conn.commit();
+                    return rows > 0;
+                }
+            } catch (SQLException e) {
+                conn.rollback();
+                e.printStackTrace();
+                return false;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     public void updateAccountBalance(int accountId, double newBalance) {
         String sql = "UPDATE Accounts SET balance = ? WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -374,8 +416,17 @@ public class DatabaseManager {
     }
 
     public void insertTransaction(Transaction transaction) {
+        try (Connection conn = getConnection()) {
+            insertTransaction(conn, transaction);
+            System.out.println("Transaction inserted.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void insertTransaction(Connection conn, Transaction transaction) throws SQLException {
         String sql = "INSERT INTO Transactions (account_id, type, amount, description, reference_id, balance_after) VALUES (?, ?, ?, ?, ?, ?)";
-        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, transaction.getAccountId());
             pstmt.setString(2, transaction.getType());
             pstmt.setDouble(3, transaction.getAmount());
@@ -383,20 +434,30 @@ public class DatabaseManager {
             pstmt.setString(5, transaction.getReferenceId());
             pstmt.setDouble(6, transaction.getBalanceAfter());
             pstmt.executeUpdate();
-            System.out.println("Transaction inserted.");
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
     }
 
     private Transaction mapTransaction(ResultSet rs) throws SQLException {
-        Transaction t = new Transaction();
+        String typeStr = rs.getString("type");
+        Transaction t;
+        if (Transaction.TYPE_DEPOSIT.equals(typeStr)) {
+            t = new DepositTransaction();
+        } else if (Transaction.TYPE_WITHDRAWAL.equals(typeStr)) {
+            t = new WithdrawTransaction();
+        } else if (Transaction.TYPE_TRANSFER_IN.equals(typeStr) || Transaction.TYPE_TRANSFER_OUT.equals(typeStr)) {
+            TransferTransaction tt = new TransferTransaction();
+            tt.setIncoming(Transaction.TYPE_TRANSFER_IN.equals(typeStr));
+            t = tt;
+        } else {
+            throw new SQLException("Unknown transaction type: " + typeStr);
+        }
         t.setId(rs.getInt("id"));
         t.setAccountId(rs.getInt("account_id"));
-        t.setType(rs.getString("type"));
         t.setAmount(rs.getDouble("amount"));
         t.setDescription(rs.getString("description"));
-        try { t.setReferenceId(rs.getString("reference_id")); } catch (SQLException ignored) {}
+        try {
+            t.setReferenceId(rs.getString("reference_id"));
+        } catch (SQLException ignored) {}
         Timestamp ts = rs.getTimestamp("timestamp");
         if (ts != null) t.setTimestamp(ts.toLocalDateTime());
         t.setBalanceAfter(rs.getDouble("balance_after"));
@@ -461,23 +522,8 @@ public class DatabaseManager {
             double fromNewBalance = from.getBalance() - amount;
             double toNewBalance = to.getBalance() + amount;
             String ref = referenceId != null ? referenceId : UUID.randomUUID().toString();
-            String sql = "INSERT INTO Transactions (account_id, type, amount, description, reference_id, balance_after) VALUES (?, ?, ?, ?, ?, ?)";
-            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                pstmt.setInt(1, fromAccountId);
-                pstmt.setString(2, Transaction.TYPE_TRANSFER_OUT);
-                pstmt.setDouble(3, amount);
-                pstmt.setString(4, "Transfer to " + to.getAccountNumber());
-                pstmt.setString(5, ref);
-                pstmt.setDouble(6, fromNewBalance);
-                pstmt.executeUpdate();
-                pstmt.setInt(1, toAccountId);
-                pstmt.setString(2, Transaction.TYPE_TRANSFER_IN);
-                pstmt.setDouble(3, amount);
-                pstmt.setString(4, "Transfer from " + from.getAccountNumber());
-                pstmt.setString(5, ref);
-                pstmt.setDouble(6, toNewBalance);
-                pstmt.executeUpdate();
-            }
+            insertTransaction(conn, new TransferTransaction(fromAccountId, amount, "Transfer to " + to.getAccountNumber(), ref, fromNewBalance, false));
+            insertTransaction(conn, new TransferTransaction(toAccountId, amount, "Transfer from " + from.getAccountNumber(), ref, toNewBalance, true));
             try (PreparedStatement up = conn.prepareStatement("UPDATE Accounts SET balance = ? WHERE id = ?")) {
                 up.setDouble(1, fromNewBalance);
                 up.setInt(2, fromAccountId);

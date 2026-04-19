@@ -3,7 +3,7 @@ package Code;
 import java.util.List;
 
 /**
- * Bank administrator operations: approve/reject new accounts, set interest rates, freeze/unfreeze accounts.
+ * Bank administrator operations: list accounts, approve/reject new accounts, set interest rates, freeze/unfreeze accounts.
  */
 public class AdminService {
     private final DatabaseManager db;
@@ -14,6 +14,10 @@ public class AdminService {
 
     public List<Account> listPendingAccounts() {
         return db.getAccountsByStatus(Account.STATUS_PENDING);
+    }
+
+    public List<Account> listAllAccounts() {
+        return db.getAllAccounts();
     }
 
     public boolean approveAccount(int accountId) {

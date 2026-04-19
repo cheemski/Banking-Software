@@ -94,10 +94,10 @@ public class Main {
             String name = readNonEmpty("Full name: ");
             String address = readNonEmpty("Address: ");
             LocalDate dob = readDate("Date of birth (YYYY-MM-DD): ");
-            String ic = readNonEmpty("IC number: ");
+            String ic = readIcNumber("IC number(XXXXXX-XX-XXXX): ");
             String occupation = readNonEmpty("Occupation: ");
             String email = readEmail("Email: ");
-            String phone = readNonEmpty("Phone: ");
+            String phone = readPhoneNumber("Phone: ");
             String password = readNonEmpty("Password: ");
             String accountType = readAccountType();
             double initialDeposit = readNonNegativeDouble("Initial deposit amount: ");
@@ -119,15 +119,17 @@ public class Main {
             System.out.println("1. Open new account (max 5)");
             System.out.println("2. View my accounts");
             System.out.println("3. Currency exchange calculator");
-            System.out.println("4. Logout");
-            String choice = readLoggedInRootMenuChoice("Choice: ", 1, 4);
+            System.out.println("4. Delete an account");
+            System.out.println("5. Logout");
+            String choice = readLoggedInRootMenuChoice("Choice: ", 1, 5);
             if (choice == null) return;
             try {
                 switch (choice) {
                     case "1" -> doOpenAdditionalAccount();
                     case "2" -> doViewAccounts(accounts);
                     case "3" -> doCurrencyExchangeCalculator();
-                    case "4" -> session.logout();
+                    case "4" -> doDeleteAccount(accounts);
+                    case "5" -> session.logout();
                     default -> System.out.println("Invalid choice.");
                 }
             } catch (NavigateBack ignored) {}
@@ -142,8 +144,9 @@ public class Main {
         System.out.println("6. Generate monthly statement");
         System.out.println("7. View my accounts");
         System.out.println("8. Currency exchange calculator");
-        System.out.println("9. Logout");
-        String choice = readLoggedInRootMenuChoice("Choice: ", 1, 9);
+        System.out.println("9. Delete an account");
+        System.out.println("10. Logout");
+        String choice = readLoggedInRootMenuChoice("Choice: ", 1, 10);
         if (choice == null) return;
         try {
             switch (choice) {
@@ -155,7 +158,8 @@ public class Main {
                 case "6" -> doMonthlyStatement(activeAccounts);
                 case "7" -> doViewAccounts(accounts);
                 case "8" -> doCurrencyExchangeCalculator();
-                case "9" -> session.logout();
+                case "9" -> doDeleteAccount(accounts);
+                case "10" -> session.logout();
                 default -> System.out.println("Invalid choice.");
             }
         } catch (NavigateBack ignored) {}
@@ -305,26 +309,52 @@ public class Main {
         System.out.println(customerService.formatMonthlyStatement(acc.getId(), year, month));
     }
 
+    private static void doDeleteAccount(List<Account> accounts) {
+        if (accounts.isEmpty()) {
+            System.out.println("You have no accounts to delete.");
+            return;
+        }
+        List<Account> zeroBalance = accounts.stream()
+                .filter(a -> Math.abs(a.getBalance()) < CustomerService.ZERO_BALANCE_EPSILON)
+                .collect(Collectors.toList());
+        if (zeroBalance.isEmpty()) {
+            System.out.println("You can only delete an account with zero balance. Withdraw or transfer your funds first.");
+            return;
+        }
+        printHeader("Delete account (Press 'N' at any time to return to previous menu)");
+        Account acc = selectAccount(zeroBalance);
+        System.out.println("You are about to permanently delete account " + acc.getAccountNumber()
+                + " (" + acc.getAccountType() + ", status: " + acc.getStatus() + "). This cannot be undone.");
+        String password = readNonEmpty("Enter your password to confirm deletion: ");
+        if (customerService.deleteOwnAccount(session.getCurrentUser().getId(), acc.getId(), password)) {
+            System.out.println("Account deleted.");
+        } else {
+            System.out.println("Deletion failed. Check your password, or the account may no longer have a zero balance.");
+        }
+    }
+
     private static void runAdminMenu() {
         printHeader("Admin Menu");
         System.out.println("1. List pending account requests");
-        System.out.println("2. Approve account");
-        System.out.println("3. Reject account");
-        System.out.println("4. Set interest rate for an account");
-        System.out.println("5. Freeze account");
-        System.out.println("6. Unfreeze account");
-        System.out.println("7. Logout");
-        String choice = readLoggedInRootMenuChoice("Choice: ", 1, 7);
+        System.out.println("2. List all accounts (database)");
+        System.out.println("3. Approve account");
+        System.out.println("4. Reject account");
+        System.out.println("5. Set interest rate for an account");
+        System.out.println("6. Freeze account");
+        System.out.println("7. Unfreeze account");
+        System.out.println("8. Logout");
+        String choice = readLoggedInRootMenuChoice("Choice: ", 1, 8);
         if (choice == null) return;
         try {
             switch (choice) {
                 case "1" -> listPendingAccounts();
-                case "2" -> approveAccount();
-                case "3" -> rejectAccount();
-                case "4" -> setInterestRate();
-                case "5" -> freezeAccount();
-                case "6" -> unfreezeAccount();
-                case "7" -> session.logout();
+                case "2" -> listAllAccountsInDatabase();
+                case "3" -> approveAccount();
+                case "4" -> rejectAccount();
+                case "5" -> setInterestRate();
+                case "6" -> freezeAccount();
+                case "7" -> unfreezeAccount();
+                case "8" -> session.logout();
                 default -> System.out.println("Invalid choice.");
             }
         } catch (NavigateBack ignored) {}
@@ -341,6 +371,34 @@ public class Main {
             User u = db.getUserById(a.getUserId());
             System.out.println("Account ID: " + a.getId() + " | Number: " + a.getAccountNumber() + " | Type: " + a.getAccountType().toUpperCase() + " | User: " + (u != null ? u.getName() : "?"));
         }
+    }
+
+    private static void listAllAccountsInDatabase() {
+        List<Account> accounts = adminService.listAllAccounts();
+        if (accounts.isEmpty()) {
+            System.out.println("No accounts in the database.");
+            return;
+        }
+        printHeader("All Accounts");
+        for (Account a : accounts) {
+            User u = db.getUserById(a.getUserId());
+            System.out.println("Account ID:      " + a.getId());
+            System.out.println("  User ID:     " + a.getUserId());
+            System.out.println("  Customer:    " + (u != null ? u.getName() : "?")
+                    + (u != null && u.getEmail() != null && !u.getEmail().isEmpty() ? " (" + u.getEmail() + ")" : ""));
+            System.out.println("  Number:      " + a.getAccountNumber());
+            System.out.println("  Type:        " + a.getAccountType());
+            System.out.println("  Status:      " + a.getStatus());
+            System.out.println("  Balance:     " + formatMoney(a.getBalance()));
+            System.out.println("  Created:     " + formatDateTime(a.getCreatedAt()));
+            if (Account.TYPE_SAVINGS.equals(a.getAccountType())) {
+                System.out.println("  Interest:    " + formatPercent(a.getInterestRate()) + " p.a.");
+            } else if (Account.TYPE_CURRENT.equals(a.getAccountType())) {
+                System.out.println("  Overdraft:   limit " + formatMoney(a.getOverdraftLimit()) + ", fee " + formatMoney(a.getOverdraftFee()));
+            }
+            System.out.println();
+        }
+        System.out.println("Total accounts: " + accounts.size());
     }
 
     private static void approveAccount() {
@@ -524,6 +582,7 @@ public class Main {
         }
     }
 
+    //0 is not allowed for this function
     private static double readPositiveDouble(String prompt) {
         while (true) {
             System.out.print(prompt);
@@ -536,6 +595,7 @@ public class Main {
         }
     }
 
+    //0 is allowed for this function, used for the interest rates where 0% interest rate exists
     private static double readNonNegativeDouble(String prompt) {
         while (true) {
             System.out.print(prompt);
@@ -545,6 +605,24 @@ public class Main {
                 if (value >= 0) return value;
             } catch (NumberFormatException ignored) {}
             System.out.println("Please enter a number that is 0 or greater.");
+        }
+    }
+
+    private static String readPhoneNumber(String prompt){
+        while (true) {
+            String regex = "^(\\+?60|0)(1[0-46-9]\\d{7,8}|[3-9]\\d{7,8})$";
+            String phone = readNonEmpty(prompt);
+            if (phone.matches(regex)) return phone;
+            System.out.println("Invalid Phone Number.");
+        }
+    }
+
+    private static String readIcNumber(String prompt){
+            while (true) {
+            String icRegex = "^(\\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])(\\d{2})(\\d{4})$";
+            String icNumber = readNonEmpty(prompt);
+            if (icNumber.matches(icRegex)) return icNumber;
+            System.out.println("Invalid IC Number.");
         }
     }
 }
