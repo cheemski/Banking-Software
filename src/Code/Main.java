@@ -109,7 +109,7 @@ public class Main {
             String name = readNonEmpty("Full name: ");
             String address = readNonEmpty("Address: ");
             LocalDate dob = readDate("Date of birth (YYYY-MM-DD): ");
-            String ic = readIcNumber("IC number(XXXXXX-XX-XXXX): ");
+            String ic = readIcNumber("IC number: ");
             String occupation = readNonEmpty("Occupation: ");
             String email = readEmail("Email: ");
             String phone = readPhoneNumber("Phone: ");
