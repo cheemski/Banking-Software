@@ -285,7 +285,6 @@ public class Main {
             System.out.println("\n┌────────────────────────────────────────────────────────┐");
             System.out.println("│                    Select an account                   │");
             System.out.println("└────────────────────────────────────────────────────────┘");
-            System.out.println("Press 'N' at any time to return to previous menu");
             for (int i = 0; i < accounts.size(); i++) {
                 Account a = accounts.get(i);
                 System.out.println((i + 1) + ". " + a.getAccountNumber() + " (" + a.getAccountType().toUpperCase() + ") | Balance: " + formatMoney(a.getBalance()));
