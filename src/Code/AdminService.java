@@ -36,7 +36,7 @@ public class AdminService {
 
     public boolean setInterestRate(int accountId, double rate) {
         Account acc = db.getAccountById(accountId);
-        if (!(acc instanceof Savings)) return false;
+        if (!(acc instanceof SavingsAccount)) return false;
         db.updateAccountInterestRate(accountId, rate);
         return true;
     }

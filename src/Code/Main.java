@@ -13,6 +13,7 @@ public class Main {
     private static DatabaseManager db;
     private static AuthService authService;
     private static CustomerService customerService;
+    private static TransactionService transactionService;
     private static AdminService adminService;
     private static Session session;
     private static final Scanner scanner = new Scanner(System.in);
@@ -191,7 +192,7 @@ public class Main {
         System.out.println("│                  ACCOUNT DETAILS                       │");
         System.out.println("└────────────────────────────────────────────────────────┘");
         for (Account account : accounts) {
-            System.out.println("Account ID        : " + account.getId());
+            System.out.println("Account ID        : " + account.getAccountId());
             System.out.println("Account Number    : " + account.getAccountNumber());
             System.out.println("Type              : " + account.getAccountType().toUpperCase());
             System.out.println("Status            : " + account.getStatus().toUpperCase());
@@ -288,7 +289,7 @@ public class Main {
         double amount = readPositiveDouble("Amount to deposit: ");
         System.out.print("Description (optional): ");
         String desc = readLineOrBack();
-        if (customerService.deposit(acc.getId(), amount, desc.isEmpty() ? "Deposit" : desc))
+        if (transactionService.deposit(acc.getAccountId(), amount, desc.isEmpty() ? "Deposit" : desc))
             System.out.println("Deposit successful.");
         else
             System.out.println("Deposit failed.");
@@ -298,7 +299,7 @@ public class Main {
         Account acc = selectAccount(accounts);
         System.out.println("Available: " + formatMoney(acc.getAvailableBalance()));
         double amount = readPositiveDouble("Amount to withdraw: ");
-        if (customerService.withdraw(acc.getId(), amount, "Withdrawal"))
+        if (transactionService.withdraw(acc.getAccountId(), amount, "Withdrawal"))
             System.out.println("Withdrawal successful.");
         else
             System.out.println("Withdrawal failed (insufficient funds or invalid amount).");
@@ -308,7 +309,7 @@ public class Main {
         Account from = selectAccount(accounts);
         String toNumber = readNonEmpty("Destination account number: ");
         double amount = readPositiveDouble("Amount: ");
-        if (customerService.transfer(from.getId(), toNumber, amount))
+        if (transactionService.transfer(from.getAccountId(), toNumber, amount))
             System.out.println("Transfer successful.");
         else
             System.out.println("Transfer failed (check balance, account number, or status).");
@@ -316,7 +317,7 @@ public class Main {
 
     private static void doViewHistory(List<Account> accounts) {
         Account acc = selectAccount(accounts);
-        List<Transaction> list = customerService.getTransactionHistory(acc.getId());
+        List<Transaction> list = transactionService.getTransactionHistory(acc.getAccountId());
         System.out.println("\n┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐");
         System.out.println("│                                          Transaction History                                           │");
         System.out.println("│                                         Account: " + acc.getAccountNumber() + "                                         │");
@@ -334,7 +335,7 @@ public class Main {
         Account acc = selectAccount(accounts);
         int year = readIntInRange("Year (e.g. 2025): ", 1900, 3000);
         int month = readIntInRange("Month (1-12): ", 1, 12);
-        System.out.println(customerService.formatMonthlyStatement(acc.getId(), year, month));
+        System.out.println(customerService.formatMonthlyStatement(acc.getAccountId(), year, month));
     }
 
     private static void doDeleteAccount(List<Account> accounts) {
@@ -354,7 +355,7 @@ public class Main {
         System.out.println("You are about to permanently delete account " + acc.getAccountNumber()
                 + " (" + acc.getAccountType() + ", status: " + acc.getStatus() + "). This cannot be undone.");
         String password = readNonEmpty("Enter your password to confirm deletion: ");
-        if (customerService.deleteOwnAccount(session.getCurrentUser().getId(), acc.getId(), password)) {
+        if (customerService.deleteOwnAccount(session.getCurrentUser().getId(), acc.getAccountId(), password)) {
             System.out.println("Account deleted.");
         } else {
             System.out.println("Deletion failed. Check your password, or the account may no longer have a zero balance.");
@@ -362,7 +363,7 @@ public class Main {
     }
 
     private static void runAdminMenu() {
-        printHeader("Admin Menu");
+        clearScreen();
         System.out.println("\n╔════════════════════════════════════════════════════════╗");
         System.out.println("║                    ADMIN MENU                          ║");
         System.out.println("╠════════════════════════════════════════════════════════╣");
@@ -400,8 +401,8 @@ public class Main {
         }
         printHeader("Pending Account Requests");
         for (Account a : pending) {
-            User u = db.getUserById(a.getUserId());
-            System.out.println("Account ID: " + a.getId() + " | Number: " + a.getAccountNumber() + " | Type: " + a.getAccountType().toUpperCase() + " | User: " + (u != null ? u.getName() : "?"));
+            User u = a.getUser();
+            System.out.println("Account ID: " + a.getAccountId() + " | Number: " + a.getAccountNumber() + " | Type: " + a.getAccountType().toUpperCase() + " | User: " + (u != null ? u.getName() : "?"));
         }
     }
 
@@ -415,9 +416,9 @@ public class Main {
         System.out.println("│                        All Accounts                    │");
         System.out.println("└────────────────────────────────────────────────────────┘");
         for (Account a : accounts) {
-            User u = db.getUserById(a.getUserId());
-            System.out.println("Account ID:      " + a.getId());
-            System.out.println("  User ID:     " + a.getUserId());
+            User u = a.getUser();
+            System.out.println("Account ID:      " + a.getAccountId());
+            System.out.println("  User ID:     " + (u != null ? u.getId() : 0));
             System.out.println("  Customer:    " + (u != null ? u.getName() : "?")
                     + (u != null && u.getEmail() != null && !u.getEmail().isEmpty() ? " (" + u.getEmail() + ")" : ""));
             System.out.println("  Number:      " + a.getAccountNumber());
@@ -677,4 +678,9 @@ public class Main {
             System.out.println("Invalid IC Number.");
         }
     }
+
+    public static void clearScreen() {  
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
+    }  
 }

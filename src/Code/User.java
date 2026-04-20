@@ -92,6 +92,8 @@ public class User {
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
     public boolean isAdmin() { return ROLE_ADMIN.equals(role); }
+    public String getPasskey() { return null; }
+    public void setPasskey(String passkey) {}
     public String getAlldetail() {
         return(name + "\n" + address + "\n" + dateOfBirth + "\n" + occupation + "\n" + email + "\n" + phone + "\n" + passwordHash);
     }

@@ -27,8 +27,8 @@ public class Test {
 
             User created = db.getUserByIc(fakeIc);
             if (created != null) {
-                Account fakeAccount = new Savings(
-                        created.getId(),
+                Account fakeAccount = new SavingsAccount(
+                        created,
                         "ACCFAKE0001",
                         1000.0,
                         0.05,

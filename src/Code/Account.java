@@ -10,8 +10,8 @@ abstract class Account {
     public static final String STATUS_FROZEN = "frozen";
     public static final String STATUS_REJECTED = "rejected";
 
-    private int id;
-    private int userId;
+    private int accountId;
+    private User user;
     private String accountNumber;
     private String accountType;
     private double balance;
@@ -20,8 +20,8 @@ abstract class Account {
 
     public Account() {}
 
-    public Account(int userId, String accountNumber, String accountType, double balance, String status) {
-        this.userId = userId;
+    public Account(User user, String accountNumber, String accountType, double balance, String status) {
+        this.user = user;
         this.accountNumber = accountNumber;
         this.accountType = accountType;
         this.balance = balance;
@@ -29,10 +29,11 @@ abstract class Account {
         this.createdAt = LocalDateTime.now();
     }
 
-    public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
-    public int getUserId() { return userId; }
-    public void setUserId(int userId) { this.userId = userId; }
+    public int getAccountId() { return accountId; }
+    public void setAccountId(int accountId) { this.accountId = accountId; }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
+    public int getUserId() { return user != null ? user.getId() : 0; }
     public String getAccountNumber() { return accountNumber; }
     public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
     public String getAccountType() { return accountType; }
@@ -58,16 +59,16 @@ abstract class Account {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Account other = (Account) o;
-        if (id != 0 && other.id != 0) return id == other.id;
-        if (id != 0 || other.id != 0) return false;
+        if (accountId != 0 && other.accountId != 0) return accountId == other.accountId;
+        if (accountId != 0 || other.accountId != 0) return false;
         return accountNumber != null && accountNumber.equals(other.accountNumber);
     }
 
     @Override
     public String toString() {
         return getClass().getSimpleName()
-                + "{id=" + id
-                + ", userId=" + userId
+                + "{accountId=" + accountId
+                + ", userId=" + getUserId()
                 + ", accountNumber='" + accountNumber + '\''
                 + ", accountType='" + accountType + '\''
                 + ", balance=" + balance

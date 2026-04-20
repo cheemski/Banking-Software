@@ -11,6 +11,7 @@ import java.util.UUID;
 public class CustomerService {
     public static final int MAX_ACCOUNTS_PER_CUSTOMER = 5;
     public static final double ZERO_BALANCE_EPSILON = 1e-6;
+    public static final double DEFAULT_DEPOSIT_MINIMUM = 0.0;
     private final DatabaseManager db;
 
     public CustomerService(DatabaseManager db) {
@@ -56,13 +57,15 @@ public class CustomerService {
         List<Account> existingAccounts = db.getAccountsByUserId(userId);
         if (existingAccounts.size() >= MAX_ACCOUNTS_PER_CUSTOMER) return false;
         if (!Account.TYPE_SAVINGS.equals(accountType) && !Account.TYPE_CURRENT.equals(accountType)) return false;
+        User user = db.getUserById(userId);
+        if (user == null) return false;
 
         String accountNumber = generateUniqueAccountNumber();
         Account account;
         if (Account.TYPE_CURRENT.equals(accountType)) {
-            account = new Current(userId, accountNumber, initialDeposit > 0 ? initialDeposit : 0.0, 500.0, 10.0, Account.STATUS_PENDING);
+            account = new CurrentAccount(user, accountNumber, initialDeposit > 0 ? initialDeposit : 0.0, 500.0, 10.0, Account.STATUS_PENDING);
         } else {
-            account = new Savings(userId, accountNumber, initialDeposit > 0 ? initialDeposit : 0.0, 0.05, Account.STATUS_PENDING);
+            account = new SavingsAccount(user, accountNumber, initialDeposit > 0 ? initialDeposit : 0.0, 0.05, Account.STATUS_PENDING);
         }
         db.insertAccount(account);
 
@@ -70,57 +73,13 @@ public class CustomerService {
             Account createdAccount = db.getAccountByNumber(accountNumber);
             if (createdAccount != null) {
                 String ref = "REF" + System.currentTimeMillis();
-                Transaction t = new DepositTransaction(createdAccount.getId(), initialDeposit, "Initial deposit", ref, initialDeposit);
+                Transaction t = new DepositTransaction(createdAccount, initialDeposit, "Initial deposit", ref, initialDeposit, DEFAULT_DEPOSIT_MINIMUM);
                 db.insertTransaction(t);
             }
         }
         return true;
     }
 
-    /**
-     * Deposit to account. Returns true on success. Fails if account not active.
-     */
-    public boolean deposit(int accountId, double amount, String description) {
-        if (amount <= 0) return false;
-        Account acc = db.getAccountById(accountId);
-        if (acc == null || !Account.STATUS_ACTIVE.equals(acc.getStatus())) return false;
-        double newBalance = acc.getBalance() + amount;
-        String ref = "REF" + System.currentTimeMillis();
-        Transaction t = new DepositTransaction(accountId, amount, description, ref, newBalance);
-        db.insertTransaction(t);
-        db.updateAccountBalance(accountId, newBalance);
-        return true;
-    }
-
-    /**
-     * Withdraw from account. Enforces balance + overdraft (for current). Returns true on success.
-     */
-    public boolean withdraw(int accountId, double amount, String description) {
-        if (amount <= 0) return false;
-        Account acc = db.getAccountById(accountId);
-        if (acc == null || !Account.STATUS_ACTIVE.equals(acc.getStatus())) return false;
-        if (acc.getAvailableBalance() < amount) return false;
-        double newBalance = acc.getBalance() - amount;
-        String ref = "REF" + System.currentTimeMillis();
-        Transaction t = new WithdrawTransaction(accountId, amount, description, ref, newBalance);
-        db.insertTransaction(t);
-        db.updateAccountBalance(accountId, newBalance);
-        return true;
-    }
-
-    /**
-     * Transfer amount from one account to another (by account number). Uses DB transaction for integrity.
-     */
-    public boolean transfer(int fromAccountId, String toAccountNumber, double amount) {
-        if (amount <= 0) return false;
-        Account to = db.getAccountByNumber(toAccountNumber);
-        if (to == null) return false;
-        return db.transfer(fromAccountId, to.getId(), amount, "REF" + System.currentTimeMillis());
-    }
-
-    public List<Transaction> getTransactionHistory(int accountId) {
-        return db.getTransactionsByAccountId(accountId);
-    }
 
     /**
      * Permanently deletes the customer's account after password confirmation.
@@ -131,7 +90,7 @@ public class CustomerService {
         User user = db.getUserById(userId);
         if (user == null || !db.validatePassword(password, user.getPasswordHash())) return false;
         Account acc = db.getAccountById(accountId);
-        if (acc == null || acc.getUserId() != userId) return false;
+        if (acc == null || acc.getUser() == null || acc.getUser().getId() != userId) return false;
         if (Math.abs(acc.getBalance()) >= ZERO_BALANCE_EPSILON) return false;
         return db.deleteAccountWithTransactions(accountId);
     }

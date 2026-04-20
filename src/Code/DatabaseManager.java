@@ -10,6 +10,7 @@ import java.util.UUID;
 
 public class DatabaseManager {
     private static final String DB_URL = "jdbc:sqlite:bank.db";
+    private static final String DEFAULT_ADMIN_PASSKEY = "ADMINPASSKEY001";
 
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(DB_URL);
@@ -28,6 +29,7 @@ public class DatabaseManager {
                 phone TEXT,
                 password_hash TEXT,
                 role TEXT DEFAULT 'customer',
+                passkey TEXT,
                 status TEXT DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -59,6 +61,8 @@ public class DatabaseManager {
                 reference_id TEXT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 balance_after REAL,
+                deposit_minimum REAL DEFAULT 0.0,
+                withdrawal_fee REAL DEFAULT 0.0,
                 FOREIGN KEY (account_id) REFERENCES Accounts(id)
             );
         """;
@@ -78,9 +82,12 @@ public class DatabaseManager {
     private void migrateSchema(Connection conn) {
         String[] alterStatements = {
             "ALTER TABLE Users ADD COLUMN role TEXT DEFAULT 'customer'",
+            "ALTER TABLE Users ADD COLUMN passkey TEXT",
             "ALTER TABLE Accounts ADD COLUMN overdraft_limit REAL DEFAULT 0.0",
             "ALTER TABLE Accounts ADD COLUMN overdraft_fee REAL DEFAULT 0.0",
-            "ALTER TABLE Transactions ADD COLUMN reference_id TEXT"
+            "ALTER TABLE Transactions ADD COLUMN reference_id TEXT",
+            "ALTER TABLE Transactions ADD COLUMN deposit_minimum REAL DEFAULT 0.0",
+            "ALTER TABLE Transactions ADD COLUMN withdrawal_fee REAL DEFAULT 0.0"
         };
         for (String sql : alterStatements) {
             try (Statement stmt = conn.createStatement()) {
@@ -98,9 +105,12 @@ public class DatabaseManager {
             if (!User.ROLE_ADMIN.equals(existing.getRole())) {
                 updateUserRole(existing.getId(), User.ROLE_ADMIN);
             }
+            if (existing.getPasskey() == null || existing.getPasskey().isBlank()) {
+                updateAdminPasskey(existing.getId(), DEFAULT_ADMIN_PASSKEY);
+            }
             return;
         }
-        User admin = new User("Admin", "Bank", LocalDate.of(2000, 1, 1), "ADMIN001", "Administrator", "admin@bank.com", "0000000000", "admin123", User.ROLE_ADMIN);
+        User admin = new AdminUser("Admin", "Bank", LocalDate.of(2000, 1, 1), "ADMIN001", "Administrator", "admin@bank.com", "0000000000", "admin123", DEFAULT_ADMIN_PASSKEY);
         insertUser(admin);
     }
 
@@ -108,6 +118,17 @@ public class DatabaseManager {
         String sql = "UPDATE Users SET role = ? WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, role);
+            pstmt.setInt(2, userId);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void updateAdminPasskey(int userId, String passkey) {
+        String sql = "UPDATE Users SET passkey = ? WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, passkey);
             pstmt.setInt(2, userId);
             pstmt.executeUpdate();
         } catch (SQLException e) {
@@ -129,7 +150,7 @@ public class DatabaseManager {
     }
 
     public void insertUser(User user) {
-        String sql = "INSERT INTO Users (name, address, date_of_birth, ic_number, occupation, email, phone, password_hash, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO Users (name, address, date_of_birth, ic_number, occupation, email, phone, password_hash, role, passkey) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, user.getName());
             pstmt.setString(2, user.getAddress());
@@ -140,11 +161,33 @@ public class DatabaseManager {
             pstmt.setString(7, user.getPhone());
             pstmt.setString(8, hashPassword(user.getPasswordHash()));
             pstmt.setString(9, user.getRole() != null ? user.getRole() : User.ROLE_CUSTOMER);
+            pstmt.setString(10, user.getPasskey());
             pstmt.executeUpdate();
             System.out.println("User inserted.");
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private User mapUser(ResultSet rs) throws SQLException {
+        String role = rs.getString("role");
+        if (role == null || role.isEmpty()) role = User.ROLE_CUSTOMER;
+        User user = User.ROLE_ADMIN.equals(role) ? new AdminUser() : new User();
+        user.setId(rs.getInt("id"));
+        user.setName(rs.getString("name"));
+        user.setAddress(rs.getString("address"));
+        Date dob = rs.getDate("date_of_birth");
+        if (dob != null) user.setDateOfBirth(dob.toLocalDate());
+        user.setOccupation(rs.getString("occupation"));
+        user.setEmail(rs.getString("email"));
+        user.setIcNumber(rs.getString("ic_number"));
+        user.setPhone(rs.getString("phone"));
+        user.setPasswordHash(rs.getString("password_hash"));
+        user.setRole(role);
+        try {
+            user.setPasskey(rs.getString("passkey"));
+        } catch (SQLException ignored) {}
+        return user;
     }
 
     // Get user by IC number
@@ -154,19 +197,7 @@ public class DatabaseManager {
             pstmt.setString(1, icNumber);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                User user = new User();
-                user.setId(rs.getInt("id"));
-                user.setName(rs.getString("name"));
-                user.setAddress(rs.getString("address"));
-                user.setDateOfBirth(rs.getDate("date_of_birth").toLocalDate());
-                user.setOccupation(rs.getString("occupation"));
-                user.setEmail(rs.getString("email"));
-                user.setIcNumber(rs.getString("ic_number"));
-                user.setPhone(rs.getString("phone"));
-                user.setPasswordHash(rs.getString("password_hash"));
-                try { user.setRole(rs.getString("role")); } catch (SQLException ignored) {}
-                if (user.getRole() == null || user.getRole().isEmpty()) user.setRole(User.ROLE_CUSTOMER);
-                return user;
+                return mapUser(rs);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -195,24 +226,37 @@ public class DatabaseManager {
             pstmt.setString(1, email);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                User user = new User();
-                user.setId(rs.getInt("id"));
-                user.setName(rs.getString("name"));
-                user.setAddress(rs.getString("address"));
-                user.setDateOfBirth(rs.getDate("date_of_birth").toLocalDate());
-                user.setOccupation(rs.getString("occupation"));
-                user.setEmail(rs.getString("email"));
-                user.setIcNumber(rs.getString("ic_number"));
-                user.setPhone(rs.getString("phone"));
-                user.setPasswordHash(rs.getString("password_hash"));
-                try { user.setRole(rs.getString("role")); } catch (SQLException ignored) {}
-                if (user.getRole() == null || user.getRole().isEmpty()) user.setRole(User.ROLE_CUSTOMER);
-                return user;
+                return mapUser(rs);
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public User modifyUser(int userId, String name, String address, LocalDate dateOfBirth, String occupation, String email, String phone, String password) {
+        String sql = "UPDATE Users SET name = ?, address = ?, date_of_birth = ?, occupation = ?, email = ?, phone = ?, password_hash = ? WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, name);
+            pstmt.setString(2, address);
+            pstmt.setDate(3, Date.valueOf(dateOfBirth));
+            pstmt.setString(4, occupation);
+            pstmt.setString(5, email);
+            pstmt.setString(6, phone);
+            pstmt.setString(7, hashPassword(password));
+            pstmt.setInt(8, userId);
+            int affectedRows = pstmt.executeUpdate();
+            if (affectedRows > 0) {
+                System.out.println("User updated.");
+                return getUserById(userId);
+            } else {
+                System.out.println("No user found with the given ID.");
+                return null;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public User getUserById(int id) {
@@ -221,19 +265,7 @@ public class DatabaseManager {
             pstmt.setInt(1, id);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                User user = new User();
-                user.setId(rs.getInt("id"));
-                user.setName(rs.getString("name"));
-                user.setAddress(rs.getString("address"));
-                user.setDateOfBirth(rs.getDate("date_of_birth").toLocalDate());
-                user.setOccupation(rs.getString("occupation"));
-                user.setEmail(rs.getString("email"));
-                user.setIcNumber(rs.getString("ic_number"));
-                user.setPhone(rs.getString("phone"));
-                user.setPasswordHash(rs.getString("password_hash"));
-                try { user.setRole(rs.getString("role")); } catch (SQLException ignored) {}
-                if (user.getRole() == null || user.getRole().isEmpty()) user.setRole(User.ROLE_CUSTOMER);
-                return user;
+                return mapUser(rs);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -248,7 +280,8 @@ public class DatabaseManager {
     public void insertAccount(Account account) {
         String sql = "INSERT INTO Accounts (user_id, account_number, account_type, balance, interest_rate, overdraft_limit, overdraft_fee, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, account.getUserId());
+            if (account.getUser() == null) throw new IllegalArgumentException("Account user cannot be null");
+            pstmt.setInt(1, account.getUser().getId());
             pstmt.setString(2, account.getAccountNumber());
             pstmt.setString(3, account.getAccountType());
             pstmt.setDouble(4, account.getBalance());
@@ -263,21 +296,21 @@ public class DatabaseManager {
         }
     }
 
-    private Account mapAccount(ResultSet rs) throws SQLException {
+    private Account mapAccount(ResultSet rs, Connection conn) throws SQLException {
         String accountType = rs.getString("account_type");
         Account account;
         if (Account.TYPE_CURRENT.equals(accountType)) {
-            Current current = new Current();
+            CurrentAccount current = new CurrentAccount();
             current.setOverdraftLimit(rs.getDouble("overdraft_limit"));
             current.setOverdraftFee(rs.getDouble("overdraft_fee"));
             account = current;
         } else {
-            Savings savings = new Savings();
+            SavingsAccount savings = new SavingsAccount();
             savings.setInterestRate(rs.getDouble("interest_rate"));
             account = savings;
         }
-        account.setId(rs.getInt("id"));
-        account.setUserId(rs.getInt("user_id"));
+        account.setAccountId(rs.getInt("id"));
+        account.setUser(getUserById(conn, rs.getInt("user_id")));
         account.setAccountNumber(rs.getString("account_number"));
         account.setAccountType(accountType);
         account.setBalance(rs.getDouble("balance"));
@@ -296,7 +329,7 @@ public class DatabaseManager {
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, userId);
             ResultSet rs = pstmt.executeQuery();
-            while (rs.next()) accounts.add(mapAccount(rs));
+            while (rs.next()) accounts.add(mapAccount(rs, conn));
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -308,7 +341,7 @@ public class DatabaseManager {
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, accountId);
             ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) return mapAccount(rs);
+            if (rs.next()) return mapAccount(rs, conn);
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -320,7 +353,7 @@ public class DatabaseManager {
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, accountNumber);
             ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) return mapAccount(rs);
+            if (rs.next()) return mapAccount(rs, conn);
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -333,7 +366,7 @@ public class DatabaseManager {
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, status);
             ResultSet rs = pstmt.executeQuery();
-            while (rs.next()) accounts.add(mapAccount(rs));
+            while (rs.next()) accounts.add(mapAccount(rs, conn));
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -345,7 +378,7 @@ public class DatabaseManager {
         String sql = "SELECT * FROM Accounts ORDER BY id";
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             ResultSet rs = pstmt.executeQuery();
-            while (rs.next()) accounts.add(mapAccount(rs));
+            while (rs.next()) accounts.add(mapAccount(rs, conn));
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -425,25 +458,44 @@ public class DatabaseManager {
     }
 
     private void insertTransaction(Connection conn, Transaction transaction) throws SQLException {
-        String sql = "INSERT INTO Transactions (account_id, type, amount, description, reference_id, balance_after) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO Transactions (account_id, type, amount, description, reference_id, balance_after, deposit_minimum, withdrawal_fee) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            if (transaction.getAccount() == null) throw new IllegalArgumentException("Transaction account cannot be null");
             pstmt.setInt(1, transaction.getAccountId());
             pstmt.setString(2, transaction.getType());
             pstmt.setDouble(3, transaction.getAmount());
             pstmt.setString(4, transaction.getDescription());
             pstmt.setString(5, transaction.getReferenceId());
             pstmt.setDouble(6, transaction.getBalanceAfter());
+            if (transaction instanceof DepositTransaction depositTransaction) {
+                pstmt.setDouble(7, depositTransaction.getDepositMinimum());
+            } else {
+                pstmt.setDouble(7, 0.0);
+            }
+            if (transaction instanceof WithdrawTransaction withdrawTransaction) {
+                pstmt.setDouble(8, withdrawTransaction.getWithdrawalFee());
+            } else {
+                pstmt.setDouble(8, 0.0);
+            }
             pstmt.executeUpdate();
         }
     }
 
-    private Transaction mapTransaction(ResultSet rs) throws SQLException {
+    private Transaction mapTransaction(ResultSet rs, Connection conn) throws SQLException {
         String typeStr = rs.getString("type");
         Transaction t;
         if (Transaction.TYPE_DEPOSIT.equals(typeStr)) {
-            t = new DepositTransaction();
+            DepositTransaction depositTransaction = new DepositTransaction();
+            try {
+                depositTransaction.setDepositMinimum(rs.getDouble("deposit_minimum"));
+            } catch (SQLException ignored) {}
+            t = depositTransaction;
         } else if (Transaction.TYPE_WITHDRAWAL.equals(typeStr)) {
-            t = new WithdrawTransaction();
+            WithdrawTransaction withdrawTransaction = new WithdrawTransaction();
+            try {
+                withdrawTransaction.setWithdrawalFee(rs.getDouble("withdrawal_fee"));
+            } catch (SQLException ignored) {}
+            t = withdrawTransaction;
         } else if (Transaction.TYPE_TRANSFER_IN.equals(typeStr) || Transaction.TYPE_TRANSFER_OUT.equals(typeStr)) {
             TransferTransaction tt = new TransferTransaction();
             tt.setIncoming(Transaction.TYPE_TRANSFER_IN.equals(typeStr));
@@ -451,8 +503,8 @@ public class DatabaseManager {
         } else {
             throw new SQLException("Unknown transaction type: " + typeStr);
         }
-        t.setId(rs.getInt("id"));
-        t.setAccountId(rs.getInt("account_id"));
+        t.setTransactionId(rs.getInt("id"));
+        t.setAccount(getAccountById(conn, rs.getInt("account_id")));
         t.setAmount(rs.getDouble("amount"));
         t.setDescription(rs.getString("description"));
         try {
@@ -470,7 +522,7 @@ public class DatabaseManager {
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, accountId);
             ResultSet rs = pstmt.executeQuery();
-            while (rs.next()) list.add(mapTransaction(rs));
+            while (rs.next()) list.add(mapTransaction(rs, conn));
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -485,7 +537,7 @@ public class DatabaseManager {
             pstmt.setString(2, String.format("%04d", year));
             pstmt.setString(3, String.format("%02d", month));
             ResultSet rs = pstmt.executeQuery();
-            while (rs.next()) list.add(mapTransaction(rs));
+            while (rs.next()) list.add(mapTransaction(rs, conn));
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -497,7 +549,17 @@ public class DatabaseManager {
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, accountId);
             ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) return mapAccount(rs);
+            if (rs.next()) return mapAccount(rs, conn);
+        }
+        return null;
+    }
+
+    private User getUserById(Connection conn, int id) throws SQLException {
+        String sql = "SELECT * FROM Users WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) return mapUser(rs);
         }
         return null;
     }
@@ -522,8 +584,8 @@ public class DatabaseManager {
             double fromNewBalance = from.getBalance() - amount;
             double toNewBalance = to.getBalance() + amount;
             String ref = referenceId != null ? referenceId : UUID.randomUUID().toString();
-            insertTransaction(conn, new TransferTransaction(fromAccountId, amount, "Transfer to " + to.getAccountNumber(), ref, fromNewBalance, false));
-            insertTransaction(conn, new TransferTransaction(toAccountId, amount, "Transfer from " + from.getAccountNumber(), ref, toNewBalance, true));
+            insertTransaction(conn, new TransferTransaction(from, amount, "Transfer to " + to.getAccountNumber(), ref, fromNewBalance, false));
+            insertTransaction(conn, new TransferTransaction(to, amount, "Transfer from " + from.getAccountNumber(), ref, toNewBalance, true));
             try (PreparedStatement up = conn.prepareStatement("UPDATE Accounts SET balance = ? WHERE id = ?")) {
                 up.setDouble(1, fromNewBalance);
                 up.setInt(2, fromAccountId);

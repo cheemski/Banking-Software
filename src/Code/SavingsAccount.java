@@ -1,14 +1,14 @@
 package Code;
 
-public class Savings extends Account {
+public class SavingsAccount extends Account {
     private double interestRate;
 
-    public Savings() {
+    public SavingsAccount() {
         setAccountType(TYPE_SAVINGS);
     }
 
-    public Savings(int userId, String accountNumber, double balance, double interestRate, String status) {
-        super(userId, accountNumber, TYPE_SAVINGS, balance, status);
+    public SavingsAccount(User user, String accountNumber, double balance, double interestRate, String status) {
+        super(user, accountNumber, TYPE_SAVINGS, balance, status);
         this.interestRate = interestRate;
     }
 

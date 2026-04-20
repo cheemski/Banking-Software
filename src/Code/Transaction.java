@@ -13,8 +13,8 @@ public abstract class Transaction {
     public static final String TYPE_TRANSFER_IN = "transfer_in";
     public static final String TYPE_TRANSFER_OUT = "transfer_out";
 
-    private int id;
-    private int accountId;
+    private int transactionId;
+    private Account account;
     private double amount;
     private String description;
     private String referenceId;
@@ -23,8 +23,8 @@ public abstract class Transaction {
 
     protected Transaction() {}
 
-    protected Transaction(int accountId, double amount, String description, String referenceId, double balanceAfter) {
-        this.accountId = accountId;
+    protected Transaction(Account account, double amount, String description, String referenceId, double balanceAfter) {
+        this.account = account;
         this.amount = amount;
         this.description = description;
         this.referenceId = referenceId;
@@ -34,20 +34,24 @@ public abstract class Transaction {
 
     public abstract String getType();
 
-    public int getId() {
-        return id;
+    public int getTransactionId() {
+        return transactionId;
     }
 
-    public void setId(int id) {
-        this.id = id;
+    public void setTransactionId(int transactionId) {
+        this.transactionId = transactionId;
     }
 
     public int getAccountId() {
-        return accountId;
+        return account != null ? account.getAccountId() : 0;
     }
 
-    public void setAccountId(int accountId) {
-        this.accountId = accountId;
+    public Account getAccount() {
+        return account;
+    }
+
+    public void setAccount(Account account) {
+        this.account = account;
     }
 
     public double getAmount() {
@@ -95,9 +99,9 @@ public abstract class Transaction {
         if (this == o) return true;
         if (!(o instanceof Transaction)) return false;
         Transaction other = (Transaction) o;
-        if (id != 0 && other.id != 0) return id == other.id;
-        if (id != 0 || other.id != 0) return false;
-        return accountId == other.accountId
+        if (transactionId != 0 && other.transactionId != 0) return transactionId == other.transactionId;
+        if (transactionId != 0 || other.transactionId != 0) return false;
+        return getAccountId() == other.getAccountId()
                 && Double.compare(amount, other.amount) == 0
                 && Objects.equals(getType(), other.getType())
                 && Objects.equals(timestamp, other.timestamp)
@@ -108,7 +112,7 @@ public abstract class Transaction {
     @Override
     public String toString() {
         return getClass().getSimpleName()
-                + "{id=" + id + ", accountId=" + accountId + ", type='" + getType() + "', amount=" + amount
+                + "{transactionId=" + transactionId + ", accountId=" + getAccountId() + ", type='" + getType() + "', amount=" + amount
                 + ", description='" + description + "', referenceId='" + referenceId + "', timestamp=" + timestamp
                 + ", balanceAfter=" + balanceAfter + "}";
     }
