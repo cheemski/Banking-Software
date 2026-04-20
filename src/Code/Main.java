@@ -106,14 +106,14 @@ public class Main {
             System.out.println("│                 NEW CUSTOMER REGISTRATION              │");
             System.out.println("└────────────────────────────────────────────────────────┘");
             System.out.println("Press 'N' at any time to return to main menu");
-            String name = readNonEmpty("Full name: ");
-            String address = readNonEmpty("Address: ");
+            String name = readNonEmpty("Full name                 : ");
+            String address = readNonEmpty("Address                   : ");
             LocalDate dob = readDate("Date of birth (YYYY-MM-DD): ");
-            String ic = readIcNumber("IC number: ");
-            String occupation = readNonEmpty("Occupation: ");
-            String email = readEmail("Email: ");
-            String phone = readPhoneNumber("Phone: ");
-            String password = readNonEmpty("Password: ");
+            String ic = readNonEmpty("IC number                 : ");
+            String occupation = readNonEmpty("Occupation                : ");
+            String email = readEmail("Email                     : ");
+            String phone = readNonEmpty("Phone                     : ");
+            String password = readNonEmpty("Password                  : ");
             String accountType = readAccountType();
             double initialDeposit = readNonNegativeDouble("Initial deposit amount: ");
             User created = customerService.register(name, address, dob, ic, occupation, email, phone, password, accountType, initialDeposit);
@@ -164,7 +164,7 @@ public class Main {
         System.out.println("║  2. Deposit                                            ║");
         System.out.println("║  3. Withdraw                                           ║");
         System.out.println("║  4. Transfer                                           ║");
-        System.out.println("║  5. View transaction his                               ║");
+        System.out.println("║  5. View transaction history                           ║");
         System.out.println("║  6. Generate monthly statement                         ║");
         System.out.println("║  7. View my accounts                                   ║");
         System.out.println("║  8. Currency exchange calculator                       ║");
@@ -435,7 +435,7 @@ public class Main {
         System.out.println("║  2. List all accounts (database)                       ║");
         System.out.println("║  3. Approve account                                    ║");
         System.out.println("║  4. Reject account                                     ║");
-        System.out.println("║  5. Set interest rate for an accoun                    ║");
+        System.out.println("║  5. Set interest rate for an account                   ║");
         System.out.println("║  6. Freeze account                                     ║");
         System.out.println("║  7. Unfreeze account                                   ║");
         System.out.println("║  8. Logout                                             ║");
@@ -481,15 +481,15 @@ public class Main {
         System.out.println("└────────────────────────────────────────────────────────┘");
         for (Account a : accounts) {
             User u = a.getUser();
-            System.out.println("Account ID:      " + a.getAccountId());
-            System.out.println("  User ID:     " + (u != null ? u.getId() : 0));
-            System.out.println("  Customer:    " + (u != null ? u.getName() : "?")
+            System.out.println("Account ID : " + a.getAccountId());
+            System.out.println("User ID    : " + a.getUserId());
+            System.out.println("Customer   : " + (u != null ? u.getName() : "?")
                     + (u != null && u.getEmail() != null && !u.getEmail().isEmpty() ? " (" + u.getEmail() + ")" : ""));
-            System.out.println("  Number:      " + a.getAccountNumber());
-            System.out.println("  Type:        " + a.getAccountType());
-            System.out.println("  Status:      " + a.getStatus());
-            System.out.println("  Balance:     " + formatMoney(a.getBalance()));
-            System.out.println("  Created:     " + formatDateTime(a.getCreatedAt()));
+            System.out.println("Number     : " + a.getAccountNumber());
+            System.out.println("Type       : " + a.getAccountType());
+            System.out.println("Status     : " + a.getStatus());
+            System.out.println("Balance    : " + formatMoney(a.getBalance()));
+            System.out.println("Created    : " + formatDateTime(a.getCreatedAt()));
             if (Account.TYPE_SAVINGS.equals(a.getAccountType())) {
                 System.out.println("  Interest:    " + formatPercent(a.getInterestRate()) + " p.a.");
             } else if (Account.TYPE_CURRENT.equals(a.getAccountType())) {
