@@ -95,6 +95,32 @@ public class CustomerService {
         return db.deleteAccountWithTransactions(accountId);
     }
 
+    /**
+     * Updates selected user profile fields and confirms using current password.
+     * Returns updated user on success, null on validation failure.
+     */
+    public User modifyOwnProfile(int userId, String newOccupation, String newPhone, String newPassword, String confirmationPassword) {
+        if (confirmationPassword == null || confirmationPassword.isBlank()) return null;
+        User user = db.getUserById(userId);
+        if (user == null) return null;
+        if (!db.validatePassword(confirmationPassword, user.getPasswordHash())) return null;
+
+        String occupation = (newOccupation != null && !newOccupation.isBlank()) ? newOccupation : user.getOccupation();
+        String phone = (newPhone != null && !newPhone.isBlank()) ? newPhone : user.getPhone();
+        String passwordToSave = (newPassword != null && !newPassword.isBlank()) ? newPassword : confirmationPassword;
+
+        return db.modifyUser(
+                user.getId(),
+                user.getName(),
+                user.getAddress(),
+                user.getDateOfBirth(),
+                occupation,
+                user.getEmail(),
+                phone,
+                passwordToSave
+        );
+    }
+
     public List<Transaction> getMonthlyStatement(int accountId, int year, int month) {
         return db.getTransactionsByAccountIdAndMonth(accountId, year, month);
     }

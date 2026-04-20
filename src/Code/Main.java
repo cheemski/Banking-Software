@@ -41,6 +41,7 @@ public class Main {
         db.createTables();
         authService = new AuthService(db);
         customerService = new CustomerService(db);
+        transactionService = new TransactionService(db);
         adminService = new AdminService(db);
         session = new Session();
 
@@ -136,9 +137,10 @@ public class Main {
             System.out.println("║ 2. View my accounts                                    ║");
             System.out.println("║ 3. Currency exchange calculator                        ║");
             System.out.println("║ 4. Delete an account                                   ║");
-            System.out.println("║ 5. Logout                                              ║");
+            System.out.println("║ 5. Modify personal information                         ║");
+            System.out.println("║ 6. Logout                                              ║");
             System.out.println("╚════════════════════════════════════════════════════════╝");
-            String choice = readLoggedInRootMenuChoice("Choice: ", 1, 5);
+            String choice = readLoggedInRootMenuChoice("Choice: ", 1, 6);
             if (choice == null) return;
             try {
                 switch (choice) {
@@ -146,7 +148,8 @@ public class Main {
                     case "2" -> doViewAccounts(accounts);
                     case "3" -> doCurrencyExchangeCalculator();
                     case "4" -> doDeleteAccount(accounts);
-                    case "5" -> session.logout();
+                    case "5" -> doModifyPersonalInformation();
+                    case "6" -> session.logout();
                     default -> System.out.println("Invalid choice.");
                 }
             } catch (NavigateBack ignored) {}
@@ -162,8 +165,9 @@ public class Main {
         System.out.println("7. View my accounts");
         System.out.println("8. Currency exchange calculator");
         System.out.println("9. Delete an account");
-        System.out.println("10. Logout");
-        String choice = readLoggedInRootMenuChoice("Choice: ", 1, 10);
+        System.out.println("10. Modify personal information");
+        System.out.println("11. Logout");
+        String choice = readLoggedInRootMenuChoice("Choice: ", 1, 11);
         if (choice == null) return;
         try {
             switch (choice) {
@@ -176,7 +180,8 @@ public class Main {
                 case "7" -> doViewAccounts(accounts);
                 case "8" -> doCurrencyExchangeCalculator();
                 case "9" -> doDeleteAccount(accounts);
-                case "10" -> session.logout();
+                case "10" -> doModifyPersonalInformation();
+                case "11" -> session.logout();
                 default -> System.out.println("Invalid choice.");
             }
         } catch (NavigateBack ignored) {}
@@ -359,6 +364,44 @@ public class Main {
             System.out.println("Account deleted.");
         } else {
             System.out.println("Deletion failed. Check your password, or the account may no longer have a zero balance.");
+        }
+    }
+
+    private static void doModifyPersonalInformation() {
+        printHeader("Modify Personal Information (Press 'N' at any time to return to previous menu)");
+        System.out.println("1. Occupation");
+        System.out.println("2. Phone");
+        System.out.println("3. Password");
+        String choice = readMenuChoice("Choose what to modify: ", 1, 3);
+
+        String newOccupation = null;
+        String newPhone = null;
+        String newPassword = null;
+
+        switch (choice) {
+            case "1" -> newOccupation = readNonEmpty("Enter new occupation: ");
+            case "2" -> newPhone = readPhoneNumber("Enter new phone: ");
+            case "3" -> newPassword = readNonEmpty("Enter new password: ");
+            default -> {
+                System.out.println("Invalid choice.");
+                return;
+            }
+        }
+
+        String confirmationPassword = readNonEmpty("Enter current password to confirm changes: ");
+        User updated = customerService.modifyOwnProfile(
+                session.getCurrentUser().getId(),
+                newOccupation,
+                newPhone,
+                newPassword,
+                confirmationPassword
+        );
+
+        if (updated != null) {
+            session.setCurrentUser(updated);
+            System.out.println("Personal information updated successfully.");
+        } else {
+            System.out.println("Update failed. Please ensure your confirmation password is correct.");
         }
     }
 
