@@ -7,7 +7,7 @@ public class User {
     public static final String ROLE_CUSTOMER = "customer";
     public static final String ROLE_ADMIN = "admin";
 
-    private int id;
+    private int Userid;
     private String name;
     private String address;
     private LocalDate dateOfBirth;
@@ -36,10 +36,10 @@ public class User {
 
     // Getters and setters (example for id and name)
     public int getId() { 
-        return id; 
+        return Userid; 
     }
     public void setId(int id) { 
-        this.id = id; 
+        this.Userid = id; 
     }
     public String getName() { 
         return name; 
@@ -103,13 +103,13 @@ public class User {
         if (this == o) return true;
         if (!(o instanceof User)) return false;
         User other = (User) o;
-        if (id != 0 && other.id != 0) return id == other.id;
-        if (id != 0 || other.id != 0) return false;
+        if (Userid != 0 && other.Userid != 0) return Userid == other.Userid;
+        if (Userid != 0 || other.Userid != 0) return false;
         return icNumber != null && icNumber.equals(other.icNumber);
     }
 
     @Override
     public String toString() {
-        return "User{id=" + id + ", name='" + name + "', email='" + email + "', icNumber='" + icNumber + "', role='" + role + "'}";
+        return "User{Userid=" + Userid + ", name='" + name + "', email='" + email + "', icNumber='" + icNumber + "', role='" + role + "'}";
     }
 }
