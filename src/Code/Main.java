@@ -109,10 +109,10 @@ public class Main {
             String name = readNonEmpty("Full name                 : ");
             String address = readNonEmpty("Address                   : ");
             LocalDate dob = readDate("Date of birth (YYYY-MM-DD): ");
-            String ic = readNonEmpty("IC number                 : ");
+            String ic = readIcNumber("IC number                 : ");
             String occupation = readNonEmpty("Occupation                : ");
             String email = readEmail("Email                     : ");
-            String phone = readNonEmpty("Phone                     : ");
+            String phone = readPhoneNumber("Phone                     : ");
             String password = readNonEmpty("Password                  : ");
             String accountType = readAccountType();
             double initialDeposit = readNonNegativeDouble("Initial deposit amount: ");
@@ -467,6 +467,7 @@ public class Main {
         for (Account a : pending) {
             User u = a.getUser();
             System.out.println("Account ID: " + a.getAccountId() + " | Number: " + a.getAccountNumber() + " | Type: " + a.getAccountType().toUpperCase() + " | User: " + (u != null ? u.getName() : "?"));
+
         }
     }
 
@@ -491,9 +492,9 @@ public class Main {
             System.out.println("Balance    : " + formatMoney(a.getBalance()));
             System.out.println("Created    : " + formatDateTime(a.getCreatedAt()));
             if (Account.TYPE_SAVINGS.equals(a.getAccountType())) {
-                System.out.println("  Interest:    " + formatPercent(a.getInterestRate()) + " p.a.");
+                System.out.println("Interest:    " + formatPercent(a.getInterestRate()) + " p.a.");
             } else if (Account.TYPE_CURRENT.equals(a.getAccountType())) {
-                System.out.println("  Overdraft:   limit " + formatMoney(a.getOverdraftLimit()) + ", fee " + formatMoney(a.getOverdraftFee()));
+                System.out.println("Overdraft:   limit " + formatMoney(a.getOverdraftLimit()) + ", fee " + formatMoney(a.getOverdraftFee()));
             }
             System.out.println();
         }

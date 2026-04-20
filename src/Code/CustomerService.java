@@ -144,9 +144,9 @@ public class CustomerService {
             sb.append("No transactions for this month.\n");
         }
         for (Transaction t : list) {
-            sb.append(t.getTimestamp().format(fmt)).append(" | ").append(t.getType()).append(" | ");
-            sb.append(String.format("RM %,.2f", t.getAmount())).append(" | ");
-            sb.append(t.getDescription() != null ? t.getDescription() : "-").append(" | Balance after: ");
+            sb.append(String.format("%s", t.getTimestamp().format(fmt))).append(" | ").append(String.format("%-12s", t.getType())).append(" | ");
+            sb.append(String.format("RM %-10.2f", t.getAmount())).append(" | ");
+            sb.append(String.format("%-28s", t.getDescription() != null ? t.getDescription() : "-")).append(" | Balance after: ");
             sb.append(String.format("RM %,.2f", t.getBalanceAfter())).append("\n");
         }
         sb.append("──────────────────────────────────────────────────────────────────────────────────────────────────────\n");
