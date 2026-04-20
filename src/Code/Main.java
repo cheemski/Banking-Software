@@ -338,7 +338,7 @@ public class Main {
             return;
         }
         for (Transaction t : list) {
-            System.out.println(formatDateTime(t.getTimestamp()) + " | " + t.getType() + " | " + formatMoney(t.getAmount()) + " | " + (t.getDescription() != null ? t.getDescription() : "-") + " | Balance after: " + formatMoney(t.getBalanceAfter()));
+            System.out.printf("%s | %-12s | %-15s | %-28s | Balance after: %s%n", formatDateTime(t.getTimestamp()), t.getType().toUpperCase(), formatMoney(t.getAmount()), (t.getDescription() != null ? t.getDescription() : "—"), formatMoney(t.getBalanceAfter()));            
         }
     }
 
