@@ -138,9 +138,10 @@ public class Main {
             System.out.println("║ 3. Currency exchange calculator                        ║");
             System.out.println("║ 4. Delete an account                                   ║");
             System.out.println("║ 5. Modify personal information                         ║");
-            System.out.println("║ 6. Logout                                              ║");
+            System.out.println("║ 6. View Profile information                            ║");
+            System.out.println("║ 7. Logout                                              ║");
             System.out.println("╚════════════════════════════════════════════════════════╝");
-            String choice = readLoggedInRootMenuChoice("Choice: ", 1, 6);
+            String choice = readLoggedInRootMenuChoice("Choice: ", 1, 7);
             if (choice == null) return;
             try {
                 switch (choice) {
@@ -149,25 +150,30 @@ public class Main {
                     case "3" -> doCurrencyExchangeCalculator();
                     case "4" -> doDeleteAccount(accounts);
                     case "5" -> doModifyPersonalInformation();
-                    case "6" -> session.logout();
+                    case "6" -> doViewProfileInformation();
+                    case "7" -> session.logout();
                     default -> System.out.println("Invalid choice.");
                 }
             } catch (NavigateBack ignored) {}
             return;
         }
-        printHeader("Customer Menu");
-        System.out.println("1. Open new account (max 5)");
-        System.out.println("2. Deposit");
-        System.out.println("3. Withdraw");
-        System.out.println("4. Transfer");
-        System.out.println("5. View transaction history");
-        System.out.println("6. Generate monthly statement");
-        System.out.println("7. View my accounts");
-        System.out.println("8. Currency exchange calculator");
-        System.out.println("9. Delete an account");
-        System.out.println("10. Modify personal information");
-        System.out.println("11. Logout");
-        String choice = readLoggedInRootMenuChoice("Choice: ", 1, 11);
+        System.out.println("\n╔════════════════════════════════════════════════════════╗");
+        System.out.println("║                     CUSTOMER MENU                      ║");
+        System.out.println("╠════════════════════════════════════════════════════════╣");
+        System.out.println("║  1. Open new account (max 5)                           ║");
+        System.out.println("║  2. Deposit                                            ║");
+        System.out.println("║  3. Withdraw                                           ║");
+        System.out.println("║  4. Transfer                                           ║");
+        System.out.println("║  5. View transaction his                               ║");
+        System.out.println("║  6. Generate monthly statement                         ║");
+        System.out.println("║  7. View my accounts                                   ║");
+        System.out.println("║  8. Currency exchange calculator                       ║");
+        System.out.println("║  9. Delete an account                                  ║");
+        System.out.println("║  10. Modify personal information                       ║");
+        System.out.println("║  11. View profile information                          ║");
+        System.out.println("║  12. Logout                                            ║");
+        System.out.println("╚════════════════════════════════════════════════════════╝");
+        String choice = readLoggedInRootMenuChoice("Choice: ", 1, 12);
         if (choice == null) return;
         try {
             switch (choice) {
@@ -181,7 +187,8 @@ public class Main {
                 case "8" -> doCurrencyExchangeCalculator();
                 case "9" -> doDeleteAccount(accounts);
                 case "10" -> doModifyPersonalInformation();
-                case "11" -> session.logout();
+                case "11" -> doViewProfileInformation();    
+                case "12" -> session.logout();
                 default -> System.out.println("Invalid choice.");
             }
         } catch (NavigateBack ignored) {}
@@ -403,6 +410,20 @@ public class Main {
         } else {
             System.out.println("Update failed. Please ensure your confirmation password is correct.");
         }
+    }
+
+    private static void doViewProfileInformation() {
+        User user = session.getCurrentUser();
+        System.out.println("\n┌────────────────────────────────────────────────────────┐");
+        System.out.println("│                  Profile Information                   │");
+        System.out.println("└────────────────────────────────────────────────────────┘");
+        System.out.println("Name          : " + user.getName());
+        System.out.println("Email         : " + user.getEmail());
+        System.out.println("IC Number     : " + user.getIcNumber());
+        System.out.println("Address       : " + user.getAddress());
+        System.out.println("Date of Birth : " + (user.getDateOfBirth() != null ? user.getDateOfBirth().toString() : "-"));
+        System.out.println("Occupation    : " + user.getOccupation());
+        System.out.println("Phone         : " + user.getPhone());
     }
 
     private static void runAdminMenu() {
